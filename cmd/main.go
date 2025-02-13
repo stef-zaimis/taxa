@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -36,9 +37,21 @@ func main() {
 		log.Fatalf("Error fetching taxa: %v\n", err)
 	}
 
+	correct_answer_id := rand.Intn(len(taxa))
+	correct_answer := taxa[correct_answer_id]
+
 	fmt.Println("\nHere are 4 options under", name+":")
 	for _, taxon := range taxa {
 		fmt.Println("-", taxon)
+	}
+
+	fmt.Println("Guess the correct answer")
+	answer, _ := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	if strings.ToLower(correct_answer) == strings.ToLower(answer) {
+		fmt.Println("Correct!")
+	} else {
+		fmt.Printf("Wrong! The right answer is %s\n", correct_answer)
 	}
 }
 
