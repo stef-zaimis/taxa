@@ -1,5 +1,5 @@
 -- Taxon table schema
-postgres=# CREATE TABLE taxon (
+CREATE TABLE taxon (
     taxon_id VARCHAR(50) PRIMARY KEY,
     parent_id VARCHAR(50),
     accepted_name_id VARCHAR(50),
