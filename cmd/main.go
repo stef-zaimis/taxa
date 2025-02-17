@@ -31,8 +31,12 @@ func main() {
 	name, _ := reader.ReadString('\n')
 	name = strings.TrimSpace(name)
 
+	fmt.Print("And what taxonomic level would you like to be tested on (e.g. 'Order')? ")
+	choice_rank, _ := reader.ReadString('\n')
+	choice_rank = strings.TrimSpace(strings.ToLower(choice_rank))
+
 	fmt.Printf("Querying for rank: '%s' and name: '%s'\n", rank, name)
-	taxa, err := getRandomTaxa(conn, rank, name)
+	taxa, err := getRandomTaxa(conn, rank, name, choice_rank)
 	if err != nil {
 		log.Fatalf("Error fetching taxa: %v\n", err)
 	}
@@ -55,17 +59,25 @@ func main() {
 	}
 }
 
-func getRandomTaxa(conn *pgx.Conn, rank, name string) ([]string, error) {
+func getRandomTaxa(conn *pgx.Conn, rank, name, choice_rank string) ([]string, error) {
 	query := `
-		SELECT t2.scientific_name
-		FROM taxon t1
-		JOIN taxon t2 ON t1.taxon_id = t2.parent_id
-		WHERE LOWER(t1.taxon_rank) = LOWER($1) AND LOWER(t1.scientific_name) = LOWER($2)
-		ORDER BY RANDOM()
-		LIMIT 4;
+		WITH RECURSIVE taxon_hierarchy AS (
+			SELECT taxon_id, taxon_rank, scientific_name, parent_id
+			FROM taxon
+			WHERE LOWER(taxon_rank) = LOWER($1) AND LOWER(scientific_name) = LOWER($2)
+
+			UNION ALL
+			
+			SELECT t2.taxon_id, t2.taxon_rank, t2.scientific_name, t2.parent_id
+			FROM taxon t2
+			JOIN taxon_hierarchy th ON t2.parent_id = th.taxon_id
+		)
+		SELECT scientific_name
+		FROM taxon_hierarchy
+		WHERE LOWER(taxon_rank) = LOWER($3)
 	`
 
-	rows, err := conn.Query(context.Background(), query, rank, name)
+	rows, err := conn.Query(context.Background(), query, rank, name, choice_rank)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +94,14 @@ func getRandomTaxa(conn *pgx.Conn, rank, name string) ([]string, error) {
 
 	if len(taxa) == 0 {
 		return nil, fmt.Errorf("no taxa found under %s (%s)", name, rank)
+	}
+
+	rand.Shuffle(len(taxa), func(i, j int) {
+		taxa[i], taxa[j] = taxa[j], taxa[i]
+	})
+
+	if len(taxa) > 4 {
+		taxa = taxa[:4]
 	}
 
 	return taxa, nil

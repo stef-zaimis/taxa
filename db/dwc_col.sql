@@ -46,3 +46,52 @@ WITH (
   FORMAT text,
   DELIMITER E'\t'
 );
+
+
+
+-- Closure table for ancestors/descendants
+CREATE TABLE taxon_closure (
+  ancestor_id  VARCHAR(50) NOT NULL,
+  descendant_id VARCHAR(50) NOT NULL,
+  depth VARCHAR(50) NOT NULL,
+  PRIMARY KEY (ancestor_id, descendant_id)
+);
+
+-- Indexes for this
+CREATE INDEX ON taxon_closure (ancestor_id);
+CREATE INDEX ON taxon_closure (descendant_id);
+CREATE INDEX ON taxon_closure (depth);
+
+-- Script to populate it
+TRUNCATE taxon_closure; -- Clear table
+
+-- Step 1: Insert self relationships (each taxon is its own ancestor with depth 0)
+INSERT INTO taxon_closure (ancestor_id, descendant_id, depth)
+SELECT taxon_id, taxon_id, 0
+FROM taxon;
+
+-- Step 2: Recursively insert ancestor relationships (depth > 0)
+WITH RECURSIVE taxon_paths AS (
+  -- Base case: direct parent-child relationships
+  SELECT 
+    taxon_id AS descendant_id,
+    parent_id AS ancestor_id,
+    1 AS depth
+  FROM taxon
+  WHERE parent_id IS NOT NULL
+
+  UNION ALL
+
+  -- Recursive step: for each already-found relationship,
+  -- get the parent of the current ancestor.
+  SELECT
+    tp.descendant_id,
+    t.parent_id AS ancestor_id,
+    tp.depth + 1 AS depth
+  FROM taxon_paths tp
+  JOIN taxon t ON t.taxon_id = tp.ancestor_id
+  WHERE t.parent_id IS NOT NULL
+)
+INSERT INTO taxon_closure (ancestor_id, descendant_id, depth)
+SELECT ancestor_id, descendant_id, depth
+FROM taxon_paths;
