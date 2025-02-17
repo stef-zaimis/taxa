@@ -32,17 +32,17 @@ func main() {
 	name = strings.TrimSpace(name)
 
 	fmt.Print("And what taxonomic level would you like to be tested on (e.g. 'Order')? ")
-	choice_rank, _ := reader.ReadString('\n')
-	choice_rank = strings.TrimSpace(strings.ToLower(choice_rank))
+	choiceRank, _ := reader.ReadString('\n')
+	choiceRank = strings.TrimSpace(strings.ToLower(choiceRank))
 
 	fmt.Printf("Querying for rank: '%s' and name: '%s'\n", rank, name)
-	taxa, err := getRandomTaxa(conn, rank, name, choice_rank)
+	taxa, err := getRandomTaxa(conn, rank, name, choiceRank)
 	if err != nil {
 		log.Fatalf("Error fetching taxa: %v\n", err)
 	}
 
-	correct_answer_id := rand.Intn(len(taxa))
-	correct_answer := taxa[correct_answer_id]
+	correctAnswerId := rand.Intn(len(taxa))
+	correctAnswer := taxa[correctAnswerId]
 
 	fmt.Println("\nHere are 4 options under", name+":")
 	for _, taxon := range taxa {
@@ -52,32 +52,38 @@ func main() {
 	fmt.Println("Guess the correct answer")
 	answer, _ := reader.ReadString('\n')
 	answer = strings.TrimSpace(answer)
-	if strings.ToLower(correct_answer) == strings.ToLower(answer) {
+	if strings.ToLower(correctAnswer) == strings.ToLower(answer) {
 		fmt.Println("Correct!")
 	} else {
-		fmt.Printf("Wrong! The right answer is %s\n", correct_answer)
+		fmt.Printf("Wrong! The right answer is %s\n", correctAnswer)
 	}
 }
 
-func getRandomTaxa(conn *pgx.Conn, rank, name, choice_rank string) ([]string, error) {
-	query := `
-		WITH RECURSIVE taxon_hierarchy AS (
-			SELECT taxon_id, taxon_rank, scientific_name, parent_id
-			FROM taxon
-			WHERE LOWER(taxon_rank) = LOWER($1) AND LOWER(scientific_name) = LOWER($2)
+func getRandomTaxa(conn *pgx.Conn, parentRank, parentName, targetRank string) ([]string, error) {
+	ctx := context.Background()
 
-			UNION ALL
-			
-			SELECT t2.taxon_id, t2.taxon_rank, t2.scientific_name, t2.parent_id
-			FROM taxon t2
-			JOIN taxon_hierarchy th ON t2.parent_id = th.taxon_id
-		)
-		SELECT scientific_name
-		FROM taxon_hierarchy
-		WHERE LOWER(taxon_rank) = LOWER($3)
+	findAncestor := `
+		SELECT taxon_id
+		FROM taxon
+		WHERE lower(taxon_rank) = $1
+		AND lower(scientific_name) = $2
+		LIMIT 1
 	`
 
-	rows, err := conn.Query(context.Background(), query, rank, name, choice_rank)
+	var ancestorID string
+	err := conn.QueryRow(ctx, findAncestor, parentRank, parentName).Scan(&ancestorID)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't find parent (%s %s): %w", parentRank, parentName, err)
+	}
+
+	findDescendants := `
+			SELECT t.scientific_name
+			FROM taxon_closure c
+			JOIN taxon t ON t.taxon_id = c.descendant_id
+			WHERE c.ancestor_id = $1
+			AND lower(t.taxon_rank) = $2
+		`
+	rows, err := conn.Query(ctx, findDescendants, ancestorID, targetRank)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +97,10 @@ func getRandomTaxa(conn *pgx.Conn, rank, name, choice_rank string) ([]string, er
 		}
 		taxa = append(taxa, taxonName)
 	}
+	rows.Close()
 
 	if len(taxa) == 0 {
-		return nil, fmt.Errorf("no taxa found under %s (%s)", name, rank)
+		return nil, fmt.Errorf("no taxa found under %s (%s)", parentName, parentRank)
 	}
 
 	rand.Shuffle(len(taxa), func(i, j int) {
