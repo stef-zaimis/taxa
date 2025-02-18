@@ -99,11 +99,12 @@ FROM taxon_paths;
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 -- Media table
-CREATE TABLE media (
+CREATE TABLE taxon_media_status (
     id SERIAL PRIMARY KEY,
-    taxon_id VARCHAR(255), REFERENCES taxa(taxon_id),
+    taxon_id VARCHAR(255) REFERENCES taxon(taxon_id),
+    source VARCHAR(50) NOT NULL,
+    source_taxon_key VARCHAR(50),
     has_media BOOLEAN NOT NULL DEFAULT FALSE,
-    media_url TEXT,
-    source VARCHAR(50),
-    license TEXT,
+    media_count INT DEFAULT 0,
+    UNIQUE (taxon_id, source)
 );
