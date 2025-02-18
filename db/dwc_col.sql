@@ -48,7 +48,7 @@ WITH (
 );
 
 
-
+-----------------------------------------------------------------------------------------------------------------------------------------
 -- Closure table for ancestors/descendants
 CREATE TABLE taxon_closure (
   ancestor_id  VARCHAR(50) NOT NULL,
@@ -95,3 +95,15 @@ WITH RECURSIVE taxon_paths AS (
 INSERT INTO taxon_closure (ancestor_id, descendant_id, depth)
 SELECT ancestor_id, descendant_id, depth
 FROM taxon_paths;
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+-- Media table
+CREATE TABLE media (
+    id SERIAL PRIMARY KEY,
+    taxon_id VARCHAR(255), REFERENCES taxa(taxon_id),
+    has_media BOOLEAN NOT NULL DEFAULT FALSE,
+    media_url TEXT,
+    source VARCHAR(50),
+    license TEXT,
+);
