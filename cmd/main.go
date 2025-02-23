@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const dbURL = "postgres://postgres:toor@127.0.0.1:5432/col_dwca_db"
+const dbURL = "postgres://postgres:toor@127.0.0.1:5432/col_dwca"
 
 func main() {
 	conn, err := pgx.Connect(context.Background(), dbURL)
@@ -43,7 +43,7 @@ func main() {
 	}
 
 	correctAnswerID := rand.Intn(len(taxa))
-	fmt.Println("The right answer is ", correctAnswerID)
+	fmt.Println("The right answer is ", correctAnswerID+1)
 	correctAnswer := taxa[correctAnswerID]
 
 	fmt.Println("\nHere are 4 options under", name+":")

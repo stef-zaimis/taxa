@@ -1,4 +1,4 @@
--- Taxon table schema
+-- Taxon table schema COL
 CREATE TABLE taxon (
     taxon_id VARCHAR(50) PRIMARY KEY,
     parent_id VARCHAR(50),
@@ -9,7 +9,7 @@ CREATE TABLE taxon (
     taxonomic_status VARCHAR(50),
     taxon_rank VARCHAR(50),
     scientific_name TEXT,
-    scientific_name_authorship VARCHAR(255),
+    scientific_name_authorship TEXT,
     notho VARCHAR(50),
     generic_name VARCHAR(100),
     infrageneric_epithet VARCHAR(100),
@@ -32,8 +32,12 @@ CREATE TABLE taxon (
     taxon_references TEXT
 );
 
--- Copying from a Taxon.tsv file
-COPY taxon(
+-- Copying from a Taxon.tsv file of the dwca version of COL, 
+-- YOU FIRST NEED TO DO THE FOLLOWING PRE-PROCESSING TO THE DATA IN A TERMINAL:
+-- tail -n +2 Taxon.tsv > Taxon_no_header.tsv //removes the header with column names 
+-- ALSO MAKE SURE THAT THE Taxon.tsv IS CORRECT, FOR SOME REASON DOWNLOADING THE LATEST LINK IN COL'S MAIN PAGE JUST DOESN'T CONTAIN HALF THE INFO, GO TO THE DEDICATED DOWNLOAD PAGE
+
+\COPY taxon( -- Use \ to execute as the current user (postgres can't see /tmp)
     taxon_id, parent_id, accepted_name_id, original_name_id, scientific_name_id, dataset_id,
     taxonomic_status, taxon_rank, scientific_name, scientific_name_authorship,
     notho, generic_name, infrageneric_epithet, specific_epithet, infraspecific_epithet, cultivar_epithet,
@@ -41,7 +45,7 @@ COPY taxon(
     kingdom, phylum, class_name, order_name, superfamily, family, subfamily, tribe,
     taxon_remarks, taxon_references
 )
-FROM '/home/stefanos/Desktop/Uni/thesis/2025col-darwin/Taxon_noheader.tsv' -- Use a .tsv file with its header removed (there were issues with mismatched quotes so I had to use format text to avoid postgresql trying to parse quotes, especially since they are not used to delimit or for syntax in .tsv files)
+FROM '/tmp/Taxon_no_header.tsv' -- Use a .tsv file with its header removed (there were issues with mismatched quotes so I had to use format text to avoid postgresql trying to parse quotes, especially since they are not used to delimit or for syntax in .tsv files) and copy to tmp to avoid permission issues with postgres
 WITH (
   FORMAT text,
   DELIMITER E'\t'

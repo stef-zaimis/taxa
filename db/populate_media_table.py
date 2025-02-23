@@ -4,7 +4,7 @@ import aiohttp
 import psycopg2
 
 DB_PARAMS = {
-    "dbname": "col_dwca_db",
+    "dbname": "col_dwca",
     "user": "postgres",
     "password": "toor",
     "host": "localhost",
@@ -28,6 +28,16 @@ async def fetch_gbif_image_count(session, taxon_key):
             return data.get("count", 0)
     return 0
 
+async def fetch_inaturalist_taxon_id(session, taxon_name):
+    url = f"https://api.inaturalist.org/v1/taxa?q={taxon_name}"
+    async with session.get(url) as response:
+        if response.status == 200:
+            data = await response.json()
+            if data["results"]:
+                return data["results"][0]["id"]
+    return None
+
+async def fetch_inaturalist_image_count(session, taxon_id)
 
 async def get_taxon_media_info(session, taxon_id, taxon_name):
     taxon_key = await fetch_gbif_taxon_key(session, taxon_name)
