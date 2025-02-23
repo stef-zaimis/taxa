@@ -112,3 +112,12 @@ CREATE TABLE taxon_media_status (
     media_count INT DEFAULT 0,
     UNIQUE (taxon_id, source)
 );
+
+-- Add a "has_media" column to the taxon table for quick queries
+ALTER TABLE taxon ADD COLUMN has_media BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Update the has_media column in the taxon table every time the media table is updated:
+UPDATE taxon
+SET has_media = EXISTS (
+	SELECT 1 FROM taxon_media_status
+	WHERE taxon_media_status.taxon_id = taxon.taxon_id AND has_media = TRUE

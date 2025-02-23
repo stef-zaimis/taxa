@@ -37,7 +37,8 @@ async def fetch_inaturalist_taxon_id(session, taxon_name):
                 return data["results"][0]["id"]
     return None
 
-async def fetch_inaturalist_image_count(session, taxon_id)
+async def fetch_inaturalist_image_count(session, taxon_id):
+    return
 
 async def get_taxon_media_info(session, taxon_id, taxon_name):
     taxon_key = await fetch_gbif_taxon_key(session, taxon_name)
@@ -47,6 +48,8 @@ async def get_taxon_media_info(session, taxon_id, taxon_name):
     taxon_image_count = await fetch_gbif_image_count(session, taxon_key)
     if taxon_image_count == 0:
         return (taxon_id, "GBIF", taxon_key, False, 0)
+    else:
+        print(taxon_image_count)
     return (taxon_id, "GBIF", taxon_key, True, taxon_image_count)
 
 
