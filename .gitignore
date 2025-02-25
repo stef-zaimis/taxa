@@ -1,3 +1,4 @@
 db/databases/
 key.txt
 taxon_backup.dump
+venv/
