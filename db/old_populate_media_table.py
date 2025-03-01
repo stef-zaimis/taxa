@@ -148,7 +148,7 @@ def main():
         media_data = asyncio.run(process_taxa(taxon_data))
 
         if media_data:
-            # save_to_db(media_data)
+            save_to_db(media_data)
             print(f"Saved {len(media_data)} records to database.")
 
         offset += BATCH_SIZE
