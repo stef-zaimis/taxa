@@ -4,9 +4,21 @@
   "sendNotification": true,
   "format": "SIMPLE_CSV",
   "predicate": {
-    "type": "equals",
-    "key": "MEDIA_TYPE",
-    "value": "StillImage"
+    "type": "and",
+    "predicates": [
+      {
+        "type": "equals",
+        "key": "MEDIA_TYPE",
+        "value": "StillImage"
+      },
+      {
+        "type": "in",
+	"key": "LICENSE",
+	"values": [
+		"CC0_1_0",
+		"CC_BY_4_0"
+	]
+      }
+    ]
   }
 }
-
