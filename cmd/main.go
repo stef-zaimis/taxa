@@ -7,12 +7,13 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-const dbURL = "postgres://postgres:toor@127.0.0.1:5432/col_dwca_db"
+	const dbURL = "postgres://postgres:toor@127.0.0.1:5432/col_dwca"
 
 func main() {
 	conn, err := pgx.Connect(context.Background(), dbURL)
@@ -41,18 +42,22 @@ func main() {
 		log.Fatalf("Error fetching taxa: %v\n", err)
 	}
 
-	correctAnswerId := rand.Intn(len(taxa))
-	correctAnswer := taxa[correctAnswerId]
+	correctAnswerID := rand.Intn(len(taxa))
+	fmt.Println("The right answer is ", correctAnswerID+1)
+	correctAnswer := taxa[correctAnswerID]
 
 	fmt.Println("\nHere are 4 options under", name+":")
+	id := 1
 	for _, taxon := range taxa {
-		fmt.Println("-", taxon)
+		fmt.Println(id, taxon)
+		id++
 	}
 
-	fmt.Println("Guess the correct answer")
-	answer, _ := reader.ReadString('\n')
-	answer = strings.TrimSpace(answer)
-	if strings.ToLower(correctAnswer) == strings.ToLower(answer) {
+	fmt.Print("Guess the correct answer by inputting the number (e.g. '1'): ")
+	userAnswer, _ := reader.ReadString('\n')
+	userAnswer = strings.TrimSpace(userAnswer)
+	userAnswerInt, _ := strconv.Atoi(userAnswer)
+	if correctAnswerID == userAnswerInt-1 {
 		fmt.Println("Correct!")
 	} else {
 		fmt.Printf("Wrong! The right answer is %s\n", correctAnswer)

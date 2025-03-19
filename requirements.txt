@@ -1,0 +1,5 @@
+asyncio
+aiohttp
+psycopg2
+pandas
+fuzzywuzzy

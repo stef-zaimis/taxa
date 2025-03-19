@@ -1,0 +1,24 @@
+{
+  "creator": "stef_zaimis",
+  "notificationAddresses": ["zaimisstefanos@gmail.com"],
+  "sendNotification": true,
+  "format": "SIMPLE_CSV",
+  "predicate": {
+    "type": "and",
+    "predicates": [
+      {
+        "type": "equals",
+        "key": "MEDIA_TYPE",
+        "value": "StillImage"
+      },
+      {
+        "type": "in",
+	"key": "LICENSE",
+	"values": [
+		"CC0_1_0",
+		"CC_BY_4_0"
+	]
+      }
+    ]
+  }
+}
