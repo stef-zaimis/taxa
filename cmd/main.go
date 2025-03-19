@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const dbURL = "postgres://postgres:toor@127.0.0.1:5432/col_dwca"
+	const dbURL = "postgres://postgres:toor@127.0.0.1:5432/col_dwca"
 
 func main() {
 	conn, err := pgx.Connect(context.Background(), dbURL)

@@ -107,14 +107,24 @@ def main():
     print("Fetching data from db")
     local_taxa=fetch_local_taxa()
 
-    print("Fetching GBIF species with images")
-    gbif_species = fetch_gbif_species_with_images()
+    #print("Fetching GBIF species with images")
+    #gbif_species = fetch_gbif_species_with_images()
 
-    print("Matching GBIF taxa")
-    matched_gbif = match_taxa(gbif_species, "GBIF", local_taxa)
+    #print("Matching GBIF taxa")
+    #matched_gbif = match_taxa(gbif_species, "GBIF", local_taxa)
+
+    #print("Saving GBIF data to database")
+    #save_to_db(matched_gbif, "GBIF")
+    
+    print("Fetching iNaturalist species with images")
+    inat_species = fetch_inat_species_with_images()
+
+    print("Matching iNaturalist taxa")
+    matched_inat = match_taxa(inat_species, "INAT", local_taxa)
 
     print("Saving GBIF data to database")
-    save_to_db(matched_gbif, "GBIF")
+    #save_to_db(matched_gbif, "GBIF")
+
 
     print("Done")
 
