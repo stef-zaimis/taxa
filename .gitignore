@@ -1,5 +1,15 @@
+# Databases and large files
 db/databases/
 db/local_processing/
+
+# Sveltekit
+frotend/build
+frontend/.svelte-kit
+frotend/node_modules/
+
+# Git stuff
 key.txt
+
 taxon_backup.dump
+
 venv/
