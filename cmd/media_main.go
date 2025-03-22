@@ -18,7 +18,7 @@ import (
 
 const dbURL = "postgres://postgres:toor@127.0.0.1:5432/taxa"
 const gbifSearchAPI = "https://api.gbif.org/v1/species/search?datasetKey=d7dddbf4-2cf0-4f39-9b2a-bb099caae36c&q="
-const gbifOccurrenceAPI = "https://api.gbif.org/v1/occurrence/search?mediaType=StillImage&taxonKey="
+const gbifOccurrenceAPI = "https://api.gbif.org/v1/occurrence/search?mediaType=StillImage&license=CC0_1_0&license=CC_BY_4_0&taxonKey="
 
 func main() {
 	conn, err := pgx.Connect(context.Background(), dbURL)
@@ -44,16 +44,19 @@ func main() {
 	fmt.Printf("Querying for rank: '%s' and name: '%s'\n", rank, name)
 
 	// Fetch one taxon with media to be the correct answer
-	correctTaxon, err := getTaxonWithMedia(conn, rank, name, choiceRank)
+	correctTaxon, authorship, ancestorID, err := getTaxonWithMedia(conn, rank, name, choiceRank)
+	fmt.Println("Found correct taxon")
 	if err != nil {
 		log.Fatalf("No taxa with images found under '%s' (%s). Try another category.", name, rank)
 	}
 
 	// Fetch three additional taxa (without checking `has_media`)
-	randomTaxa, err := getRandomAdditionalTaxa(conn, rank, name, choiceRank, correctTaxon)
+	randomTaxa, err := getRandomAdditionalTaxa(conn, rank, name, choiceRank, correctTaxon, ancestorID, 3)
 	if err != nil {
 		log.Fatalf("Error fetching additional taxa: %v\n", err)
 	}
+
+	fmt.Println("Found additional taxa")
 
 	// Create answer set
 	taxa := append(randomTaxa, correctTaxon)
@@ -68,8 +71,9 @@ func main() {
 		}
 	}
 
+	fmt.Println("Searching for image")
 	// Get image for the correct answer
-	gbifKey, imageURL := getGBIFImage(conn, correctTaxon)
+	gbifKey, imageURL := getGBIFImage(conn, correctTaxon, authorship)
 
 	fmt.Printf("GBIF Key for %s: %s\n", correctTaxon, gbifKey)
 
@@ -103,67 +107,125 @@ func main() {
 }
 
 // getTaxonWithMedia fetches a single taxon with has_media = TRUE
-func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string) (string, error) {
+func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string) (string, string, string, error) {
 	ctx := context.Background()
 
-	query := `
-		SELECT t.scientific_name
-		FROM taxon_closure c
-		JOIN taxon t ON t.taxon_id = c.descendant_id
-		WHERE c.ancestor_id = (
-			SELECT taxon_id FROM taxon WHERE lower(taxon_rank) = $1 AND lower(scientific_name) = $2 LIMIT 1
-		)
-		AND lower(t.taxon_rank) = $3
-		AND t.has_media = TRUE
+	ancestorQuery := `
+		SELECT taxon_id
+		FROM taxon
+		WHERE lower(taxon_rank) = $1 AND lower(scientific_name) = $2
 		LIMIT 1
 	`
 
-	var taxon string
-	err := conn.QueryRow(ctx, query, parentRank, parentName, targetRank).Scan(&taxon)
+	var ancestorID string 
+	err := conn.QueryRow(ctx, ancestorQuery, parentRank, parentName).Scan(&ancestorID)
 	if err != nil {
-		return "", fmt.Errorf("no taxa with images found")
+		fmt.Println("Issue is in here")
+		return "", "", "", fmt.Errorf("failed to find ancestorID: %v", err)
 	}
 
-	return taxon, nil
+	countQuery := `
+		SELECT COUNT(*)
+		FROM taxon_closure c
+		JOIN taxon t ON t.taxon_id = c.descendant_id
+		WHERE c.ancestor_id = $1
+		AND lower(t.taxon_rank) = $2
+		AND t.has_media = TRUE
+	`
+
+	var count int
+
+	err = conn.QueryRow(ctx, countQuery, ancestorID, targetRank).Scan(&count)
+	if err != nil || count == 0 {
+		return "", "", "", fmt.Errorf("no taxa with images found")
+	}
+
+	fmt.Printf("Count is %d \n", count)
+
+	offset := rand.Intn(count)
+
+	query := `
+		SELECT t.scientific_name, t.scientific_name_authorship
+		FROM taxon_closure c
+		JOIN taxon t ON t.taxon_id = c.descendant_id
+		WHERE c.ancestor_id = $1
+		AND lower(t.taxon_rank) = $2
+		AND t.has_media = TRUE
+		OFFSET $3
+		LIMIT 1
+	`
+
+	var taxon, authorship string
+	err = conn.QueryRow(ctx, query, ancestorID, targetRank, offset).Scan(&taxon, &authorship)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to fetch taxon at offset %d: %v", offset, err)
+	}
+
+	return taxon, authorship, ancestorID, nil
 }
 
 // getRandomAdditionalTaxa fetches three random taxa (not checking has_media)
-func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank, excludeTaxon string) ([]string, error) {
+func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, taxonCount int) ([]string, error) {
 	ctx := context.Background()
 
-	query := `
-		SELECT t.scientific_name
+	countQuery := `
+		SELECT COUNT(*)
 		FROM taxon_closure c
 		JOIN taxon t ON t.taxon_id = c.descendant_id
-		WHERE c.ancestor_id = (
-			SELECT taxon_id FROM taxon WHERE lower(taxon_rank) = $1 AND lower(scientific_name) = $2 LIMIT 1
-		)
-		AND lower(t.taxon_rank) = $3
-		AND t.scientific_name != $4
-		ORDER BY RANDOM()
-		LIMIT 3
+		WHERE c.ancestor_id = $1 
+		AND lower(t.taxon_rank) = $2
+		AND t.scientific_name != $3
 	`
 
-	rows, err := conn.Query(ctx, query, parentRank, parentName, targetRank, excludeTaxon)
-	if err != nil {
-		return nil, err
+	var count int
+	err := conn.QueryRow(ctx, countQuery, ancestorID, targetRank, excludeTaxon).Scan(&count)
+	if err != nil || count < taxonCount {
+		return nil, fmt.Errorf("not enouhg taxa to choose from")
 	}
-	defer rows.Close()
 
-	var taxa []string
-	for rows.Next() {
-		var taxon string
-		if err := rows.Scan(&taxon); err != nil {
-			return nil, err
+	taxa := make(map[string]struct{})
+	usedOffsets := make(map[int]struct{})
+
+	fmt.Printf("Taxon count %d and taxa length %d", count, len(taxa))
+	for len(taxa) < taxonCount {
+		if len(usedOffsets) >= count {
+			return nil, fmt.Errorf("ran out of unique offsets to try")
 		}
-		taxa = append(taxa, taxon)
+
+		offset := rand.Intn(count)
+		if _, tried := usedOffsets[offset]; tried {
+			continue
+		}
+		usedOffsets[offset] = struct{}{}
+
+		query := `
+			SELECT t.scientific_name
+			FROM taxon_closure c
+			JOIN taxon t ON t.taxon_id = c.descendant_id
+			WHERE c.ancestor_id = $1
+			AND lower(t.taxon_rank) = $2
+			AND t.scientific_name != $3
+			OFFSET $4
+			LIMIT 1
+		`
+
+		var taxon string
+		err := conn.QueryRow(ctx, query, ancestorID, targetRank, excludeTaxon, offset).Scan(&taxon)
+		if err == nil {
+			taxa[taxon] = struct{}{}
+		}
 	}
 
-	return taxa, nil
+	result := make([]string, 0, 3)
+	for taxon := range taxa {
+		result = append(result, taxon)
+	}
+
+	return result, nil
 }
 
 // getGBIFImage retrieves an image for a taxon and updates the database if needed
-func getGBIFImage(conn *pgx.Conn, taxon string) (string, string) {
+func getGBIFImage(conn *pgx.Conn, taxon string, authorship string) (string, string) {
 	ctx := context.Background()
 
 	var gbifKey string
@@ -172,7 +234,8 @@ func getGBIFImage(conn *pgx.Conn, taxon string) (string, string) {
 	err := conn.QueryRow(ctx, query, taxon).Scan(&gbifKey)
 	if err != nil || gbifKey == "" {
 		// Query GBIF API for taxon key
-		gbifKey = fetchGBIFKeyFromAPI(taxon)
+		strippedName := strings.TrimSpace(strings.Replace(taxon, authorship, "", 1))
+		gbifKey = fetchGBIFKeyFromAPI(strippedName)
 		if gbifKey == "" {
 			fmt.Printf("No GBIF taxon key found for: %s\n", taxon)
 			return "", ""
@@ -238,11 +301,17 @@ func fetchGBIFImageFromAPI(gbifKey string) string {
 	body, _ := ioutil.ReadAll(resp.Body)
 	json.Unmarshal(body, &result)
 
-	if len(result.Results) > 0 && len(result.Results[0].Media) > 0 {
-		return result.Results[0].Media[0].Identifier
+	var images []string
+	for _, occurrence := range result.Results {
+		for _, media := range occurrence.Media {
+			images = append(images, media.Identifier)
+		}
 	}
 
-	fmt.Println("No images found for GBIF key:", gbifKey)
-	return ""
-}
+	if len(images) == 0 {
+		fmt.Println("No images found for GBIF key:", gbifKey)
+		return ""
+	}
 
+	return images[rand.Intn(len(images))] 
+}

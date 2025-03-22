@@ -118,6 +118,23 @@ WHERE taxon_id IN (
 );
 
 -----------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------- Indices:
+CREATE INDEX idx_taxon_rank_media ON taxon (lower(taxon_rank), has_media);
+CREATE INDEX idx_closure_query_fast ON taxon_closure (ancestor_id) INCLUDE (descendant_id);
+CREATE INDEX idx_taxon_rank_name ON taxon (taxon_id, scientific_name, taxon_rank);
+CREATE INDEX idx_taxon_rank_name_lower ON taxon (lower(taxon_rank), lower(scientific_name));
+
+-- Taxon lookup
+CREATE INDEX idx_taxon_rank_name_lower ON taxon (lower(taxon_rank), lower(scientific_name));
+CREATE INDEX idx_taxon_rank_media_composite ON taxon (lower(taxon_rank), scientific_name) WHERE has_media = TRUE;
+CREATE INDEX idx_taxon_name_media ON taxon (scientific_name) WHERE has_media = TRUE;
+CREATE INDEX idx_taxon_gbif_update ON taxon (scientific_name);
+CREATE INDEX idx_taxon_id ON taxon (taxon_id);
+
+-- Closure table
+CREATE INDEX idx_taxon_closure_ancestor ON taxon_closure (ancestor_id);
+CREATE INDEX idx_taxon_closure_ancestor_desc ON taxon_closure (ancestor_id, descendant_id);
+
 ----------------------------------------------------MEDIA TABLES -> LIKELY USELESS, BUT STILL KEEPING THEM IN CASE----------------------
 -- Old media table
 CREATE TABLE taxon_media_status (
