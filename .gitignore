@@ -3,9 +3,9 @@ db/databases/
 db/local_processing/
 
 # Sveltekit
-frotend/build
+frontend/build
 frontend/.svelte-kit
-frotend/node_modules/
+frontend/node_modules/
 
 # Git stuff
 key.txt
