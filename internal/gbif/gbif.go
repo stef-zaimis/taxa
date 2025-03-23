@@ -19,7 +19,7 @@ const (
 )
 
 // Return a GBIF key and image URL for a given taxon
-func GetImage(conn *pgx.Conn, taxon string, authorship string) (gbifKey string, imageURL string) {
+func GetImage(conn *pgx.Conn, taxon string, authorship string) (string, string) {
 	ctx := context.Background()
 
 	var gbifKey string
@@ -42,7 +42,7 @@ func GetImage(conn *pgx.Conn, taxon string, authorship string) (gbifKey string, 
 
 	// Add the retrieved key to the DB
 	updateQuery := "UPDATE taxon SET gbif_key = $1 WHERE scientific_name = $2"
-	_, err := conn.Exec(ctx, updateQuery, gbifKey, taxon)
+	_, err = conn.Exec(ctx, updateQuery, gbifKey, taxon)
 	if err != nil {
 		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon ,err)
 	} else {
@@ -95,7 +95,7 @@ func fetchGBIFImageFromAPI(gbifKey string) string {
 		} `json:"results"`
 	}
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	json.Unmarshal(body, &result)
 
 	var images []string

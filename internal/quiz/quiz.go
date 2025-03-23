@@ -6,12 +6,11 @@ import (
 	"math/rand"
 
 	"github.com/jackc/pgx/v5"
-	"taxa/internal/gbif"
+	"github.com/stef-zaimis/taxa/internal/gbif"
 )
 
 // Assemblae a full quiz question with correct/incorrect taxa and an image
 func GenerateQuestion(conn *pgx.Conn, parentRank, parentName, targetRank string, taxonCount int) (Question, error) {
-	ctx := context.Background()
 
 	// #1: Get correct taxon
 	correctTaxon, ancestorID, err := getTaxonWithMedia(conn, parentRank, parentName, targetRank)
