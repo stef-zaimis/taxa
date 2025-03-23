@@ -10,7 +10,7 @@ import (
 )
 
 // Assemblae a full quiz question with correct/incorrect taxa and an image
-func GenerateQuestion(conn *pgx.Conn, parentRank, parentName, targetRank string, taxonCount int) (Question, error) {
+func GenerateQuestion(conn *pgx.Conn, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
 
 	// #1: Get correct taxon
 	correctTaxon, ancestorID, err := getTaxonWithMedia(conn, parentRank, parentName, targetRank)
@@ -19,11 +19,12 @@ func GenerateQuestion(conn *pgx.Conn, parentRank, parentName, targetRank string,
 	}
 
 	// #2: Get image
-	gbifKey, imageURL := gbif.GetImage(conn, correctTaxon.ScientificName, correctTaxon.Authorship)
+	gbifKey, imageURL := gbif.GetImage(conn, correctTaxon.ScientificName, correctTaxon.Authorship, correctTaxon.Rank)
 	correctTaxon.GBIFKey = gbifKey
 
 	// #3: Get other options
-	incorrectTaxa, err := getRandomAdditionalTaxa(conn, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, 3)
+	distractorCount := optionCount - 1
+	incorrectTaxa, err := getRandomAdditionalTaxa(conn, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, distractorCount)
 	if err != nil {
 		return Question{}, fmt.Errorf("failed to get distractors: %w", err)
 	}
@@ -76,7 +77,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 		FROM taxon_closure c
 		JOIN taxon t ON t.taxon_id = c.descendant_id
 		WHERE c.ancestor_id = $1
-		AND lower(t.taxon_rank) = $2
+		AND lower(t.taxon_rank) = lower($2)
 		AND t.has_media = TRUE
 	`
 
@@ -96,7 +97,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 		FROM taxon_closure c
 		JOIN taxon t ON t.taxon_id = c.descendant_id
 		WHERE c.ancestor_id = $1
-		AND lower(t.taxon_rank) = $2
+		AND lower(t.taxon_rank) = lower($2)
 		AND t.has_media = TRUE
 		OFFSET $3
 		LIMIT 1
@@ -112,7 +113,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 }
 
 // getRandomAdditionalTaxa fetches three random taxa (not checking has_media)
-func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, taxonCount int) ([]Taxon, error) {
+func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, distractorCount int) ([]Taxon, error) { 
 	ctx := context.Background()
 
 	countQuery := `
@@ -120,25 +121,25 @@ func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank,
 		FROM taxon_closure c
 		JOIN taxon t ON t.taxon_id = c.descendant_id
 		WHERE c.ancestor_id = $1 
-		AND lower(t.taxon_rank) = $2
+		AND lower(t.taxon_rank) = lower($2)
 		AND t.scientific_name != $3
 	`
 
-	var count int
-	err := conn.QueryRow(ctx, countQuery, ancestorID, targetRank, excludeTaxon).Scan(&count)
-	if err != nil || count < taxonCount {
+	var availableCount int
+	err := conn.QueryRow(ctx, countQuery, ancestorID, targetRank, excludeTaxon).Scan(&availableCount)
+	if err != nil || availableCount < distractorCount {
 		return nil, fmt.Errorf("not enouhg taxa to choose from")
 	}
 
-	result := make([]Taxon, 0, taxonCount)
+	result := make([]Taxon, 0, distractorCount)
 	usedOffsets := make(map[int]struct{})
 
-	for len(result) < taxonCount {
-		if len(usedOffsets) >= count {
+	for len(result) < distractorCount {
+		if len(usedOffsets) >= availableCount {
 			return nil, fmt.Errorf("ran out of unique offsets to try")
 		}
 
-		offset := rand.Intn(count)
+		offset := rand.Intn(availableCount)
 		if _, tried := usedOffsets[offset]; tried {
 			continue
 		}
@@ -149,7 +150,7 @@ func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank,
 			FROM taxon_closure c
 			JOIN taxon t ON t.taxon_id = c.descendant_id
 			WHERE c.ancestor_id = $1
-			AND lower(t.taxon_rank) = $2
+			AND lower(t.taxon_rank) = lower($2)
 			AND t.scientific_name != $3
 			OFFSET $4
 			LIMIT 1

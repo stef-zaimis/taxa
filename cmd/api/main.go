@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -26,7 +28,27 @@ func main() {
 
 func makeStartQuizHandler(conn *pgx.Conn) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		question, err := quiz.GenerateQuestion(conn, "kingdom", "Animalia", "order", 3)
+		parentRank := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("rank")))
+		parentName := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
+		targetRank := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("targetRank")))
+		optionCountStr := strings.TrimSpace(r.URL.Query().Get("optionCount"))
+
+
+		if parentRank == "" || parentName == "" || targetRank == "" {
+			log.Println("Missing required query parameters, defaulting to 'kingdom', 'animalia' and 'order'")
+			parentRank = "kingdom"
+			parentName = "animalia"
+			targetRank = "order"
+		}
+
+		optionCount := 4 // default
+		if optionCountStr != "" {
+			if val, err := strconv.Atoi(optionCountStr); err == nil && val > 1 {
+				optionCount = val
+			}
+		}
+
+		question, err := quiz.GenerateQuestion(conn, parentRank, parentName, targetRank, optionCount)
 		if err != nil {
 			http.Error(w, "Failed to generate question: " + err.Error(), http.StatusInternalServerError)
 			return

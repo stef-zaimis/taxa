@@ -19,21 +19,24 @@ const (
 )
 
 // Return a GBIF key and image URL for a given taxon
-func GetImage(conn *pgx.Conn, taxon string, authorship string) (string, string) {
+func GetImage(conn *pgx.Conn, taxon, rank, authorship string) (string, string) {
 	ctx := context.Background()
 
 	var gbifKey string
-	query := "SELECT gbif_key FROM taxon WHERE scientific_name = $1 AND has_media = TRUE"
+	query := "SELECT gbif_key FROM taxon WHERE lower(scientific_name) = lower($1) AND has_media = TRUE AND lower(taxon_rank) = lower($2)"
 
-	err := conn.QueryRow(ctx, query, taxon).Scan(&gbifKey)
+	err := conn.QueryRow(ctx, query, taxon, rank).Scan(&gbifKey)
 	if err == nil && gbifKey != "" {
 		imageURL := fetchGBIFImageFromAPI(gbifKey)
 		return gbifKey, imageURL
 	}
 
 	// If there is an error (I'm assuming the error is related to gbifKey == "" maybe this should be specified later on)
-	strippedName := strings.TrimSpace(strings.Replace(taxon, authorship, "", 1))
-	gbifKey = fetchGBIFKeyFromAPI(strippedName)
+	strippedName := taxon
+	if authorship != "" {
+		strippedName = strings.TrimSpace(strings.Replace(taxon, authorship, "", 1))
+	}
+	gbifKey = fetchGBIFKeyFromAPI(strippedName, rank)
 
 	if gbifKey == "" {
 		fmt.Printf("No GBIF taxon key found for: %s\n", taxon)
@@ -41,8 +44,8 @@ func GetImage(conn *pgx.Conn, taxon string, authorship string) (string, string) 
 	}
 
 	// Add the retrieved key to the DB
-	updateQuery := "UPDATE taxon SET gbif_key = $1 WHERE scientific_name = $2"
-	_, err = conn.Exec(ctx, updateQuery, gbifKey, taxon)
+	updateQuery := "UPDATE taxon SET gbif_key = $1 WHERE lower(scientific_name) = lower($2) AND lower(taxon_rank) = lower($3)"
+	_, err = conn.Exec(ctx, updateQuery, gbifKey, taxon, rank)
 	if err != nil {
 		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon ,err)
 	} else {
@@ -54,8 +57,9 @@ func GetImage(conn *pgx.Conn, taxon string, authorship string) (string, string) 
 }
 
 // Retrieve a GBIF taxon key using the scientific name
-func fetchGBIFKeyFromAPI(taxon string) string {
-	resp, err := http.Get(gbifSearchAPI + taxon)
+func fetchGBIFKeyFromAPI(taxon, rank string) string {
+	url := fmt.Sprintf("%s%s&rank=%s", gbifSearchAPI, taxon, rank)
+	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Println("Error querying GBIF:", err)
 		return ""
