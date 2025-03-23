@@ -19,7 +19,7 @@ const (
 )
 
 // Return a GBIF key and image URL for a given taxon
-func GetImage(conn *pgx.Conn, taxon, rank, authorship string) (string, string) {
+func GetImage(conn *pgx.Conn, taxon, authorship, rank string) (string, string) {
 	ctx := context.Background()
 
 	var gbifKey string
@@ -33,9 +33,12 @@ func GetImage(conn *pgx.Conn, taxon, rank, authorship string) (string, string) {
 
 	// If there is an error (I'm assuming the error is related to gbifKey == "" maybe this should be specified later on)
 	strippedName := taxon
+	fmt.Printf("Working on %s\n", strippedName)
 	if authorship != "" {
+		fmt.Printf("We're stripping authorship: %s\n", authorship)
 		strippedName = strings.TrimSpace(strings.Replace(taxon, authorship, "", 1))
 	}
+	fmt.Printf("Querying for: %s\n", strippedName)
 	gbifKey = fetchGBIFKeyFromAPI(strippedName, rank)
 
 	if gbifKey == "" {
