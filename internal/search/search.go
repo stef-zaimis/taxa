@@ -58,7 +58,7 @@ func SearchTaxa(conn *pgx.Conn, rawQuery string, limit int) ([]SearchResult, err
 		LIMIT $2;
 	`
 
-	rows, err := conn.Query(ctx, sqlFuzzy, query, limit)
+	rows, err = conn.Query(ctx, sqlFuzzy, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("fuzzy search error: %w", err)
 	}
