@@ -53,6 +53,11 @@ WITH (
   DELIMITER E'\t'
 );
 
+-- Remove authorship from scientific name (let's keep it clean for better searches, we'll add authorship later when displaying to the user)
+UPDATE taxon
+SET scientific_name = trim(replace(scientific_name, scientific_name_authorship, ''))
+WHERE scientific_name_authorship IS NOT NULL
+  AND scientific_name ILIKE '%' || scientific_name_authorship || '%';
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 -- Closure table for ancestors/descendants
@@ -115,6 +120,18 @@ WHERE taxon_id IN (
     WHERE descendant_id IN (
         SELECT taxon_id FROM taxon WHERE has_media = TRUE
     )
+);
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+-- Search table to be used in the quicksearch functionality
+CREATE TA BLE search_index (
+	id SERIAL PRIMARY KEY,
+	scientific_name TEXT NOT NULL,
+	rank TEXT NOT NULL,
+	authorship TEXT,
+	taxon_id VARCHAR(50) NOT NULL,
+	gbif_key VARCHAR(50),
+	has_media BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -----------------------------------------------------------------------------------------------------------------------------------------
