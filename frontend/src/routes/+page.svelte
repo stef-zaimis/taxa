@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SearchBar from '$lib/components/SearchBar.svelte';
+
 	let rank = '';
 	let name = '';
 	let targetRank = '';
@@ -43,8 +45,11 @@
 <h1>Taxa Quiz Generator</h1>
 
 <div>
-	<input placeholder="Rank (e.g. class)" bind:value={rank} />
-	<input placeholder="Name (e.g. insecta)" bind:value={name} />
+	<SearchBar onSelect={({ name: selectedName, rank: selectedRank }) => {
+		name = selectedName;
+		rank = selectedRank;
+	}} />
+	
 	<input placeholder="Target Rank (e.g. family)" bind:value={targetRank} />
 	<input type="number" min="2" max="20" placeholder="Option Count" bind:value={optionCount} />
 	<br />
