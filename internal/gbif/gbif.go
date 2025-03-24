@@ -32,14 +32,8 @@ func GetImage(conn *pgx.Conn, taxon, authorship, rank string) (string, string) {
 	}
 
 	// If there is an error (I'm assuming the error is related to gbifKey == "" maybe this should be specified later on)
-	strippedName := taxon
-	fmt.Printf("Working on %s\n", strippedName)
-	if authorship != "" {
-		fmt.Printf("We're stripping authorship: %s\n", authorship)
-		strippedName = strings.TrimSpace(strings.Replace(taxon, authorship, "", 1))
-	}
-	fmt.Printf("Querying for: %s\n", strippedName)
-	gbifKey = fetchGBIFKeyFromAPI(strippedName, rank)
+	fmt.Printf("Querying for: %s\n", taxon)
+	gbifKey = fetchGBIFKeyFromAPI(taxon, rank)
 
 	if gbifKey == "" {
 		fmt.Printf("No GBIF taxon key found for: %s\n", taxon)

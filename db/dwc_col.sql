@@ -124,15 +124,40 @@ WHERE taxon_id IN (
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 -- Search table to be used in the quicksearch functionality
-CREATE TA BLE search_index (
+CREATE TABLE search_index (
 	id SERIAL PRIMARY KEY,
 	scientific_name TEXT NOT NULL,
-	rank TEXT NOT NULL,
-	authorship TEXT,
+	scientific_name_authorship TEXT,
+	taxon_rank TEXT NOT NULL,
+	full_display_name TEXT NOT NULL,
 	taxon_id VARCHAR(50) NOT NULL,
 	gbif_key VARCHAR(50),
 	has_media BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- Populating it
+INSERT INTO search_index (
+  scientific_name,
+  scientific_name_authorship,
+  taxon_rank,
+  full_display_name,
+  taxon_id,
+  gbif_key,
+  has_media
+)
+SELECT
+  scientific_name,
+  scientific_name_authorship,
+  taxon_rank,
+  CASE
+    WHEN scientific_name_authorship IS NOT NULL AND scientific_name_authorship != ''
+      THEN scientific_name || ' ' || scientific_name_authorship || ' (' || taxon_rank || ')'
+    ELSE scientific_name || ' (' || taxon_rank || ')'
+  END AS full_display_name,
+  taxon_id,
+  gbif_key,
+  has_media
+FROM taxon;
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------- Indices:
@@ -151,6 +176,10 @@ CREATE INDEX idx_taxon_id ON taxon (taxon_id);
 -- Closure table
 CREATE INDEX idx_taxon_closure_ancestor ON taxon_closure (ancestor_id);
 CREATE INDEX idx_taxon_closure_ancestor_desc ON taxon_closure (ancestor_id, descendant_id);
+
+-- Search table
+CREATE INDEX idx_search_lower_name ON search_index (lower(scientific_name));
+CREATE INDEX idx_search_display ON search_index (lower(full_display_name));
 
 ----------------------------------------------------MEDIA TABLES -> LIKELY USELESS, BUT STILL KEEPING THEM IN CASE----------------------
 -- Old media table
