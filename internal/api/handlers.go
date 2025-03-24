@@ -7,12 +7,12 @@ import (
 	"strings"
 	"log"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stef-zaimis/taxa/internal/quiz"
 	"github.com/stef-zaimis/taxa/internal/search"
 )
 
-func MakeStartQuizHandler(conn *pgx.Conn) http.HandlerFunc {
+func MakeStartQuizHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parentRank := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("rank")))
 		parentName := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
@@ -34,7 +34,7 @@ func MakeStartQuizHandler(conn *pgx.Conn) http.HandlerFunc {
 			}
 		}
 
-		question, err := quiz.GenerateQuestion(conn, parentRank, parentName, targetRank, optionCount)
+		question, err := quiz.GenerateQuestion(pool, parentRank, parentName, targetRank, optionCount)
 		if err != nil {
 			http.Error(w, "Failed to generate question: " + err.Error(), http.StatusInternalServerError)
 			return
@@ -47,16 +47,19 @@ func MakeStartQuizHandler(conn *pgx.Conn) http.HandlerFunc {
 	}
 }
 
-func MakeSearchHandler(conn *pgx.Conn) http.HandlerFunc {
+func MakeSearchHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := strings.TrimSpace(r.URL.Query().Get("q"))
+		log.Println("Search query received:", query)
+
 		if query == "" {
 			http.Error(w, "Missing search query", http.StatusBadRequest)
 			return
 		}
 
-		results, err := search.SearchTaxa(conn, query, 10)
+		results, err := search.SearchTaxa(pool, query, 10)
 		if err != nil {
+			log.Println("Search error:", err)
 			http.Error(w, "Search failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}

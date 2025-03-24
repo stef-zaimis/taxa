@@ -3,10 +3,10 @@ package api
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func SetupRouter(conn *pgx.Conn) *chi.Mux {
+func SetupRouter(pool *pgxpool.Pool) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -17,8 +17,8 @@ func SetupRouter(conn *pgx.Conn) *chi.Mux {
 		MaxAge: 300,
 	}))
 
-	r.Get("/api/quiz", MakeStartQuizHandler(conn))
-	r.Get("/api/search", MakeSearchHandler(conn))
+	r.Get("/api/quiz", MakeStartQuizHandler(pool))
+	r.Get("/api/search", MakeSearchHandler(pool))
 
 	return r
 }

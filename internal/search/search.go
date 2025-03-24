@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SearchResult struct {
@@ -16,24 +16,24 @@ type SearchResult struct {
 	HasMedia bool `json:"has_media"`
 }
 
-// Perform fast prefix search (fuzzy if needed)
-func SearchTaxa(conn *pgx.Conn, rawQuery string, limit int) ([]SearchResult, error) {
+// Perform fast case-insensitive substring search search (fuzzy if needed)
+func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult, error) {
 	ctx := context.Background()
 	query := strings.ToLower(strings.TrimSpace(rawQuery))
 	results := []SearchResult{}
 
-	// Try fast prefix match
+	// Try fast substring match
 	sqlPrefix := `
 		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
 		FROM search_index
-		WHERE lower(full_display_name) LIKE $1
+		WHERE lower(full_display_name) LIKE '%' || $1 || '%'
 		ORDER BY has_media DESC, scientific_name
 		LIMIT $2;
 	`
 
-	rows, err := conn.Query(ctx, sqlPrefix, query+"%", limit)
+	rows, err := pool.Query(ctx, sqlPrefix, query+"%", limit)
 	if err != nil {
-		return nil, fmt.Errorf("prefix search error: %w", err)
+		return nil, fmt.Errorf("substring search error: %w", err)
 	}
 	defer rows.Close()
 
@@ -45,11 +45,11 @@ func SearchTaxa(conn *pgx.Conn, rawQuery string, limit int) ([]SearchResult, err
 	}
 
 	// Return early if there are matches
-	if len(results) != 0 && len(query) <= 2 {
+	if len(results) > 0 {
 		return results, nil
 	}
 
-	// Fuzzy fallback if prefix returned nothing
+	// Fuzzy fallback if substring returned nothing
 	sqlFuzzy := `
 		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
 		FROM search_index
@@ -58,7 +58,7 @@ func SearchTaxa(conn *pgx.Conn, rawQuery string, limit int) ([]SearchResult, err
 		LIMIT $2;
 	`
 
-	rows, err = conn.Query(ctx, sqlFuzzy, query, limit)
+	rows, err = pool.Query(ctx, sqlFuzzy, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("fuzzy search error: %w", err)
 	}

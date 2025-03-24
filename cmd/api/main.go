@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 
@@ -10,10 +9,10 @@ import (
 )
 
 func main() {
-	conn := db.Connect()
-	defer conn.Close(context.Background())
+	pool := db.Connect()
+	defer pool.Close()
 
-	r := api.SetupRouter(conn)
+	r := api.SetupRouter(pool)
 
 	
 	log.Println("Starting server on:8080")
