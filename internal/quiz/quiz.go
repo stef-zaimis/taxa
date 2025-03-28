@@ -5,26 +5,26 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stef-zaimis/taxa/internal/gbif"
 )
 
 // Assemblae a full quiz question with correct/incorrect taxa and an image
-func GenerateQuestion(conn *pgx.Conn, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
+func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
 
 	// #1: Get correct taxon
-	correctTaxon, ancestorID, err := getTaxonWithMedia(conn, parentRank, parentName, targetRank)
+	correctTaxon, ancestorID, err := getTaxonWithMedia(pool, parentRank, parentName, targetRank)
 	if err != nil {
 		return Question{}, fmt.Errorf("failed to get correct taxon: %w", err)
 	}
 
 	// #2: Get image
-	gbifKey, imageURL := gbif.GetImage(conn, correctTaxon.ScientificName, correctTaxon.Authorship, correctTaxon.Rank)
+	gbifKey, imageURL := gbif.GetImage(pool, correctTaxon.ScientificName, correctTaxon.Authorship, correctTaxon.Rank)
 	correctTaxon.GBIFKey = gbifKey
 
 	// #3: Get other options
 	distractorCount := optionCount - 1
-	incorrectTaxa, err := getRandomAdditionalTaxa(conn, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, distractorCount)
+	incorrectTaxa, err := getRandomAdditionalTaxa(pool, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, distractorCount)
 	if err != nil {
 		return Question{}, fmt.Errorf("failed to get distractors: %w", err)
 	}
@@ -56,7 +56,7 @@ func GenerateQuestion(conn *pgx.Conn, parentRank, parentName, targetRank string,
 }
 
 // getTaxonWithMedia fetches a single taxon with has_media = TRUE
-func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string) (Taxon, string, error) {
+func getTaxonWithMedia(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (Taxon, string, error) {
 	ctx := context.Background()
 
 	ancestorQuery := `
@@ -67,7 +67,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 	`
 
 	var ancestorID string
-	err := conn.QueryRow(ctx, ancestorQuery, parentRank, parentName).Scan(&ancestorID)
+	err := pool.QueryRow(ctx, ancestorQuery, parentRank, parentName).Scan(&ancestorID)
 	if err != nil {
 		return Taxon{}, "", fmt.Errorf("failed to find ancestorID: %v", err)
 	}
@@ -83,7 +83,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 
 	var count int
 
-	err = conn.QueryRow(ctx, countQuery, ancestorID, targetRank).Scan(&count)
+	err = pool.QueryRow(ctx, countQuery, ancestorID, targetRank).Scan(&count)
 	if err != nil || count == 0 {
 		return Taxon{}, "", fmt.Errorf("no taxa with images found")
 	}
@@ -104,7 +104,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 	`
 
 	var t Taxon
-	err = conn.QueryRow(ctx, query, ancestorID, targetRank, offset).Scan(&t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia, &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order, &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe)
+	err = pool.QueryRow(ctx, query, ancestorID, targetRank, offset).Scan(&t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia, &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order, &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe)
 	if err != nil {
 		return Taxon{}, "", fmt.Errorf("failed to fetch taxon at offset %d: %v", offset, err)
 	}
@@ -113,7 +113,7 @@ func getTaxonWithMedia(conn *pgx.Conn, parentRank, parentName, targetRank string
 }
 
 // getRandomAdditionalTaxa fetches three random taxa (not checking has_media)
-func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, distractorCount int) ([]Taxon, error) { 
+func getRandomAdditionalTaxa(pool *pgxpool.Pool, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, distractorCount int) ([]Taxon, error) { 
 	ctx := context.Background()
 
 	countQuery := `
@@ -126,7 +126,7 @@ func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank,
 	`
 
 	var availableCount int
-	err := conn.QueryRow(ctx, countQuery, ancestorID, targetRank, excludeTaxon).Scan(&availableCount)
+	err := pool.QueryRow(ctx, countQuery, ancestorID, targetRank, excludeTaxon).Scan(&availableCount)
 	if err != nil || availableCount < distractorCount {
 		return nil, fmt.Errorf("not enouhg taxa to choose from")
 	}
@@ -157,7 +157,7 @@ func getRandomAdditionalTaxa(conn *pgx.Conn, parentRank, parentName, targetRank,
 		`
 
 		var t Taxon
-		err := conn.QueryRow(ctx, query, ancestorID, targetRank, excludeTaxon, offset).Scan(&t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia, &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order, &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe)
+		err := pool.QueryRow(ctx, query, ancestorID, targetRank, excludeTaxon, offset).Scan(&t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia, &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order, &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe)
 		if err == nil {
 			result = append(result, t)
 		}

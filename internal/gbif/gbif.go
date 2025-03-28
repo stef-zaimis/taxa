@@ -8,9 +8,8 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
-	"strings"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -19,27 +18,21 @@ const (
 )
 
 // Return a GBIF key and image URL for a given taxon
-func GetImage(conn *pgx.Conn, taxon, authorship, rank string) (string, string) {
+func GetImage(pool *pgxpool.Pool, taxon, authorship, rank string) (string, string) {
 	ctx := context.Background()
 
 	var gbifKey string
 	query := "SELECT gbif_key FROM taxon WHERE lower(scientific_name) = lower($1) AND has_media = TRUE AND lower(taxon_rank) = lower($2)"
 
-	err := conn.QueryRow(ctx, query, taxon, rank).Scan(&gbifKey)
+	err := pool.QueryRow(ctx, query, taxon, rank).Scan(&gbifKey)
 	if err == nil && gbifKey != "" {
 		imageURL := fetchGBIFImageFromAPI(gbifKey)
 		return gbifKey, imageURL
 	}
 
 	// If there is an error (I'm assuming the error is related to gbifKey == "" maybe this should be specified later on)
-	strippedName := taxon
-	fmt.Printf("Working on %s\n", strippedName)
-	if authorship != "" {
-		fmt.Printf("We're stripping authorship: %s\n", authorship)
-		strippedName = strings.TrimSpace(strings.Replace(taxon, authorship, "", 1))
-	}
-	fmt.Printf("Querying for: %s\n", strippedName)
-	gbifKey = fetchGBIFKeyFromAPI(strippedName, rank)
+	fmt.Printf("Querying for: %s\n", taxon)
+	gbifKey = fetchGBIFKeyFromAPI(taxon, rank)
 
 	if gbifKey == "" {
 		fmt.Printf("No GBIF taxon key found for: %s\n", taxon)
@@ -48,7 +41,7 @@ func GetImage(conn *pgx.Conn, taxon, authorship, rank string) (string, string) {
 
 	// Add the retrieved key to the DB
 	updateQuery := "UPDATE taxon SET gbif_key = $1 WHERE lower(scientific_name) = lower($2) AND lower(taxon_rank) = lower($3)"
-	_, err = conn.Exec(ctx, updateQuery, gbifKey, taxon, rank)
+	_, err = pool.Exec(ctx, updateQuery, gbifKey, taxon, rank)
 	if err != nil {
 		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon ,err)
 	} else {

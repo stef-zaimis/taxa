@@ -53,6 +53,11 @@ WITH (
   DELIMITER E'\t'
 );
 
+-- Remove authorship from scientific name (let's keep it clean for better searches, we'll add authorship later when displaying to the user)
+UPDATE taxon
+SET scientific_name = trim(replace(scientific_name, scientific_name_authorship, ''))
+WHERE scientific_name_authorship IS NOT NULL
+  AND scientific_name ILIKE '%' || scientific_name_authorship || '%';
 
 -----------------------------------------------------------------------------------------------------------------------------------------
 -- Closure table for ancestors/descendants
@@ -118,6 +123,117 @@ WHERE taxon_id IN (
 );
 
 -----------------------------------------------------------------------------------------------------------------------------------------
+-- To enable fuzzy matching (pg_trm extension)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Search table to be used in the quicksearch functionality
+CREATE TABLE search_index (
+	id SERIAL PRIMARY KEY,
+	scientific_name TEXT NOT NULL,
+	scientific_name_authorship TEXT,
+	taxon_rank TEXT NOT NULL,
+	search_text TEXT GENERATED ALWAYS AS (
+		lower(scientific_name || ' ' || COALESCE(scientific_name_authorship, ''))
+	) STORED,
+	taxon_id VARCHAR(50) NOT NULL,
+	gbif_key VARCHAR(50),
+	has_media BOOLEAN NOT NULL DEFAULT FALSE,
+	rank_priority INTEGER NOT NULL DEFAULT 999
+);
+
+-- Populating it
+INSERT INTO search_index (
+  scientific_name,
+  scientific_name_authorship,
+  taxon_rank,
+  taxon_id,
+  gbif_key,
+  has_media,
+  rank_priority
+)
+SELECT
+  scientific_name,
+  scientific_name_authorship,
+  taxon_rank,
+  taxon_id,
+  gbif_key,
+  has_media,
+  CASE lower(taxon_rank)
+	WHEN 'domain' THEN 1
+    WHEN 'realm' THEN 2
+    WHEN 'kingdom' THEN 3
+    WHEN 'subkingdom' THEN 4
+    WHEN 'phylum' THEN 5
+    WHEN 'division' THEN 5
+    WHEN 'subphylum' THEN 6
+    WHEN 'subdivision' THEN 6
+    WHEN 'parvphylum' THEN 7
+    WHEN 'infraphylum' THEN 8
+    WHEN 'superclass' THEN 9
+    WHEN 'class' THEN 10
+    WHEN 'megaclass' THEN 10
+    WHEN 'subterclass' THEN 10
+    WHEN 'subclass' THEN 11
+    WHEN 'infraclass' THEN 12
+    WHEN 'cohort' THEN 12
+    WHEN 'subcohort' THEN 13
+    WHEN 'superlegion' THEN 14
+    WHEN 'legion' THEN 15
+    WHEN 'sublegion' THEN 16
+    WHEN 'magnorder' THEN 17
+    WHEN 'grandorder' THEN 18
+    WHEN 'superorder' THEN 19
+    WHEN 'order' THEN 21
+    WHEN 'nanorder' THEN 22
+    WHEN 'parvorder' THEN 22
+    WHEN 'suborder' THEN 23
+    WHEN 'infraorder' THEN 24
+    WHEN 'section' THEN 24
+    WHEN 'subsection' THEN 25
+    WHEN 'superfamily' THEN 26
+    WHEN 'epifamily' THEN 27
+    WHEN 'family' THEN 28
+    WHEN 'subfamily' THEN 29
+    WHEN 'infrafamily' THEN 30
+    WHEN 'supertribe' THEN 31
+    WHEN 'tribe' THEN 32
+    WHEN 'subtribe' THEN 32
+    WHEN 'infratribe' THEN 33
+    WHEN 'genus' THEN 35
+    WHEN 'infrageneric name' THEN 36
+    WHEN 'subgenus' THEN 36
+    WHEN 'series' THEN 39
+    WHEN 'subseries' THEN 40
+    WHEN 'species' THEN 41
+    WHEN 'species aggregate' THEN 42
+    WHEN 'complex' THEN 42
+    WHEN 'subspecies' THEN 43
+    WHEN 'variety' THEN 44
+    WHEN 'subvariety' THEN 45
+    WHEN 'form' THEN 47
+    WHEN 'subform' THEN 48
+    WHEN 'forma specialis' THEN 49
+    WHEN 'aberration' THEN 50
+    WHEN 'lusus' THEN 50
+    WHEN 'mutatio' THEN 50
+    WHEN 'proles' THEN 50
+    WHEN 'morph' THEN 50
+    WHEN 'infraspecific name' THEN 50
+    WHEN 'infrasubspecific name' THEN 51
+    WHEN 'grex' THEN 52
+    WHEN 'strain' THEN 52
+    WHEN 'lineage' THEN 999
+    WHEN 'clade' THEN 999
+    WHEN 'group' THEN 999
+    WHEN 'unranked' THEN 999
+    WHEN 'other' THEN 999
+    ELSE 999
+  END
+FROM taxon;
+
+-- Setting the rank priority as a case based on their rank
+
+-----------------------------------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------- Indices:
 CREATE INDEX idx_taxon_rank_media ON taxon (lower(taxon_rank), has_media);
 CREATE INDEX idx_closure_query_fast ON taxon_closure (ancestor_id) INCLUDE (descendant_id);
@@ -134,6 +250,12 @@ CREATE INDEX idx_taxon_id ON taxon (taxon_id);
 -- Closure table
 CREATE INDEX idx_taxon_closure_ancestor ON taxon_closure (ancestor_id);
 CREATE INDEX idx_taxon_closure_ancestor_desc ON taxon_closure (ancestor_id, descendant_id);
+
+-- Search table
+CREATE INDEX idx_search_text_prefix ON search_index (lower(search_text));
+CREATE INDEX idx_search_text_trgm ON search_index USING gin (search_text gin_trgm_ops); -- Make sure to have the extension set up
+CREATE INDEX idx_search_rank_media ON search_index (rank_priority, has_media);
+
 
 ----------------------------------------------------MEDIA TABLES -> LIKELY USELESS, BUT STILL KEEPING THEM IN CASE----------------------
 -- Old media table
