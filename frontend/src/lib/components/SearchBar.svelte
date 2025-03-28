@@ -7,9 +7,7 @@
 
 	let error: string | null = null;
 
-	$: if (searchTerm.length >= 2) {
-		fetchSuggestions(searchTerm);
-	}
+	let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	async function fetchSuggestions(query: string) {
 		isLoading = true;
@@ -25,6 +23,26 @@
 			console.error(err);
 		}
 		isLoading = false;
+	}
+
+	function handleInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		searchTerm = target.value
+
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+
+		if (searchTerm.length >= 2) {
+			debounceTimeout = setTimeout(() => {
+				fetchSuggestions(searchTerm);
+			}, 1000);
+		}
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' && searchTerm.length >= 2) {
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			fetchSuggestions(searchTerm);
+		}
 	}
 
 	function selectSuggestion(suggestion: any) {
@@ -74,6 +92,8 @@
 		type="text"
 		placeholder="Search by scientific name"
 		bind:value={searchTerm}
+		on:input={handleInput}
+		on:keydown={handleKeydown}
 		autocomplete="off"
 	/>
 

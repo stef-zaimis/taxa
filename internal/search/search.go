@@ -21,6 +21,14 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 	ctx := context.Background()
 	query := strings.ToLower(strings.TrimSpace(rawQuery))
 	results := []SearchResult{}
+	seen := map[string]struct{}{}
+
+	appendIfUnique := func(r SearchResult) {
+		if _, exists := seen[r.TaxonID]; !exists {
+			results = append(results, r)
+			seen[r.TaxonID] = struct{}{}
+		}
+	}
 
 	// Try prefix match
 	sqlPrefix := `
@@ -31,7 +39,7 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 		LIMIT $2
 	`
 
-	rows, err = pool.Query(ctx, sqlPrefix, query, limt)
+	rows, err := pool.Query(ctx, sqlPrefix, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("prefix search error: %w", err)
 	}
@@ -40,8 +48,12 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 	for rows.Next() {
 		var r SearchResult
 		if err := rows.Scan(&r.ScientificName, &r.Authorship, &r.Rank, &r.TaxonID, &r.HasMedia); err == nil {
-			results = append(results, r)
+			appendIfUnique(r)
 		}
+	}
+
+	if len(results) >= limit {
+		return results, nil
 	}
 
 	// Try fast substring match
@@ -53,7 +65,7 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 		LIMIT $2;
 	`
 
-	rows, err := pool.Query(ctx, sqlSubstring, query+"%", limit)
+	rows, err = pool.Query(ctx, sqlSubstring, query+"%", limit)
 	if err != nil {
 		return nil, fmt.Errorf("substring search error: %w", err)
 	}
@@ -62,7 +74,7 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 	for rows.Next() {
 		var r SearchResult
 		if err := rows.Scan(&r.ScientificName, &r.Authorship, &r.Rank, &r.TaxonID, &r.HasMedia); err == nil {
-			results = append(results, r)
+			appendIfUnique(r)
 		}
 	}
 
@@ -89,7 +101,7 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 	for rows.Next() {
 		var r SearchResult
 		if err := rows.Scan(&r.ScientificName, &r.Authorship, &r.Rank, &r.TaxonID, &r.HasMedia); err == nil {
-			results = append(results, r)
+			appendIfUnique(r)
 		}
 	}
 
