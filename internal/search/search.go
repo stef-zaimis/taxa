@@ -16,22 +16,44 @@ type SearchResult struct {
 	HasMedia bool `json:"has_media"`
 }
 
-// Perform fast case-insensitive substring search search (fuzzy if needed)
+// Perform fast case-insensitive prefix and substring search search (fuzzy if needed)
 func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult, error) {
 	ctx := context.Background()
 	query := strings.ToLower(strings.TrimSpace(rawQuery))
 	results := []SearchResult{}
 
-	// Try fast substring match
+	// Try prefix match
 	sqlPrefix := `
 		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
 		FROM search_index
-		WHERE lower(full_display_name) LIKE '%' || $1 || '%'
-		ORDER BY has_media DESC, scientific_name
+		WHERE lower(search_text) LIKE $1 || '%'
+		ORDER BY rank_priority ASC, scientific_name ASC
+		LIMIT $2
+	`
+
+	rows, err = pool.Query(ctx, sqlPrefix, query, limt)
+	if err != nil {
+		return nil, fmt.Errorf("prefix search error: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r SearchResult
+		if err := rows.Scan(&r.ScientificName, &r.Authorship, &r.Rank, &r.TaxonID, &r.HasMedia); err == nil {
+			results = append(results, r)
+		}
+	}
+
+	// Try fast substring match
+	sqlSubstring := `
+		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
+		FROM search_index
+		WHERE lower(search_text) LIKE '%' || $1 || '%'
+		ORDER BY similarity(search_text, $1) DESC, rank_priority ASC, scientific_name ASC
 		LIMIT $2;
 	`
 
-	rows, err := pool.Query(ctx, sqlPrefix, query+"%", limit)
+	rows, err := pool.Query(ctx, sqlSubstring, query+"%", limit)
 	if err != nil {
 		return nil, fmt.Errorf("substring search error: %w", err)
 	}
@@ -53,8 +75,8 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 	sqlFuzzy := `
 		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
 		FROM search_index
-		WHERE full_display_name % $1
-		ORDER BY similarity(full_display_name, $1) DESC
+		WHERE search_text % $1
+		ORDER BY similarity(search_text, $1) DESC, rank_priority ASC, scientific_name
 		LIMIT $2;
 	`
 

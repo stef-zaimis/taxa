@@ -57,7 +57,7 @@ func MakeSearchHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 
-		results, err := search.SearchTaxa(pool, query, 10)
+		results, err := search.SearchTaxa(pool, query, 20)
 		if err != nil {
 			log.Println("Search error:", err)
 			http.Error(w, "Search failed: "+err.Error(), http.StatusInternalServerError)
