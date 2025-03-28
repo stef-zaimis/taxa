@@ -1,13 +1,14 @@
 <script lang="ts">
-	export let onSelect: (data: { name: string; rank: string }) => void = () => {};
+	export let onSelect: (data: { name: string; rank: string; authorship: string }) => void = () => {};
 
 	let searchTerm = '';
 	let suggestions: any[] = [];
 	let isLoading = false;
-
 	let error: string | null = null;
+	let isFocused = false;
 
 	let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+	let blurTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	async function fetchSuggestions(query: string) {
 		isLoading = true;
@@ -45,14 +46,28 @@
 		}
 	}
 
-	function selectSuggestion(suggestion: any) {
-		searchTerm = `${suggestion.scientific_name} ${suggestion.authorship || ''} (${suggestion.rank})`;
-		suggestions = [];
+	function handleFocus() {
+		isFocused = true;
+		if (blurTimeout) clearTimeout(blurTimeout);
 
+		if (searchTerm.length >=2 && suggestions.length === 0) {
+			fetchSuggestions(searchTerm);
+		}
+	}
+
+	function handleBlur() {
+		blurTimeout = setTimeout(() => {
+			isFocused = false;
+		}, 150);
+	}
+
+	function selectSuggestion(suggestion: any) {
 		onSelect({
 			name: suggestion.scientific_name,
-			rank: suggestion.rank
+			rank: suggestion.rank,
+			authorship: suggestion.authorship || ''
 		});
+		isFocused = false;
 	}
 </script>
 
@@ -63,6 +78,9 @@
 		max-width: 500px;
 	}
 	.suggestions {
+		list-style: none;
+		margin: 0;
+		padding: 0;
 		position: absolute;
 		background: white;
 		border: 5px solid #ccc;
@@ -94,6 +112,8 @@
 		bind:value={searchTerm}
 		on:input={handleInput}
 		on:keydown={handleKeydown}
+		on:focus={handleFocus}
+		on:blur={handleBlur}
 		autocomplete="off"
 	/>
 
@@ -101,21 +121,23 @@
 		<p>Loading...</p>
 	{/if}
 
-	{#if suggestions.length > 0}
-		<div class="suggestions">
+	{#if isFocused && suggestions.length > 0}
+		<ul class="suggestions">
 			{#each suggestions as s}
-				<div
+				<li
 					class="suggestion {s.has_media ? '' : 'no-media'}"
-					on:click={() => selectSuggestion(s)}
+					role="option"
+					tabindex="0"
+					on:mousedown|preventDefault={() => selectSuggestion(s)}
 				>
 					{s.scientific_name}
 					{#if s.authorship}
 						<i> {s.authorship}</i>
 					{/if}
 					&nbsp;({s.rank})
-				</div>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{/if}
 
 	{#if error}
