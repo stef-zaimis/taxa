@@ -231,8 +231,11 @@ SELECT
   END
 FROM taxon;
 
--- Setting the rank priority as a case based on their rank
-
+-- Rank search table
+CREATE TABLE rank_index AS 
+SELECT DISTINCT taxon_rank AS rank
+FROM taxon
+WHERE taxon_rank IS NOT NULL;
 -----------------------------------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------- Indices:
 CREATE INDEX idx_taxon_rank_media ON taxon (lower(taxon_rank), has_media);
@@ -251,10 +254,12 @@ CREATE INDEX idx_taxon_id ON taxon (taxon_id);
 CREATE INDEX idx_taxon_closure_ancestor ON taxon_closure (ancestor_id);
 CREATE INDEX idx_taxon_closure_ancestor_desc ON taxon_closure (ancestor_id, descendant_id);
 
--- Search table
+-- taxon Search table
 CREATE INDEX idx_search_text_prefix ON search_index (lower(search_text));
 CREATE INDEX idx_search_text_trgm ON search_index USING gin (search_text gin_trgm_ops); -- Make sure to have the extension set up
 CREATE INDEX idx_search_rank_media ON search_index (rank_priority, has_media);
+-- rank search table
+CREATE INDEX idx_rank_search ON rank_index (rank);
 
 
 ----------------------------------------------------MEDIA TABLES -> LIKELY USELESS, BUT STILL KEEPING THEM IN CASE----------------------
