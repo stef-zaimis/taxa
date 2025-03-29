@@ -10,7 +10,8 @@ func SetupRouter(pool *pgxpool.Pool) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost:5173"},
+		//AllowedOrigins: []string{"http://localhost:5173"},
+		AllowedOrigins: []string{"*"}, // FOR NOW
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: true,
@@ -18,7 +19,8 @@ func SetupRouter(pool *pgxpool.Pool) *chi.Mux {
 	}))
 
 	r.Get("/api/quiz", MakeStartQuizHandler(pool))
-	r.Get("/api/search", MakeSearchHandler(pool))
+	r.Get("/api/search/taxa", MakeTaxonSearchHandler(pool))
+	r.Get("/api/search/ranks", MakeRankSearchHandler(pool))
 
 	return r
 }

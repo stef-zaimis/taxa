@@ -47,10 +47,9 @@ func MakeStartQuizHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
-func MakeSearchHandler(pool *pgxpool.Pool) http.HandlerFunc {
+func MakeTaxonSearchHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := strings.TrimSpace(r.URL.Query().Get("q"))
-		log.Println("Search query received:", query)
 
 		if query == "" {
 			http.Error(w, "Missing search query", http.StatusBadRequest)
@@ -59,8 +58,29 @@ func MakeSearchHandler(pool *pgxpool.Pool) http.HandlerFunc {
 
 		results, err := search.SearchTaxa(pool, query, 20)
 		if err != nil {
-			log.Println("Search error:", err)
-			http.Error(w, "Search failed: "+err.Error(), http.StatusInternalServerError)
+			log.Println("Taxon search error:", err)
+			http.Error(w, "Taxon search failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
+	}
+}
+
+func MakeRankSearchHandler(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		query := strings.TrimSpace(r.URL.Query().Get("q"))
+
+		if query == "" {
+			http.Error(w, "Missing search query", http.StatusBadRequest)
+			return
+		}
+
+		results, err := search.SearchRanks(pool, query, 20)
+		if err != nil {
+			log.Println("Rank search error:", err)
+			http.Error(w, "Rank search failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 

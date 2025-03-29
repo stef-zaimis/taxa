@@ -1,4 +1,5 @@
 <script lang="ts">
+	console.log("SearchBar mounted");
 	export let onSelect: (data: { name: string; rank: string; authorship: string }) => void = () => {};
 	export let mode: 'taxon' | 'rank' = 'taxon';
 	export let placeholder: string = 'Search...';
@@ -8,7 +9,6 @@
 	let isLoading = false;
 	let error: string | null = null;
 	let isFocused = false;
-	let minLength = mode == 'rank' ? 1 : 2;
 
 	let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 	let blurTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -21,6 +21,8 @@
 			if (res.ok) {
 				suggestions = await res.json();
 			} else {
+				const text = await res.text();
+				console.error('API ERror response:', text);
 				error = `API ERror: ${res.status}`;
 			}
 		} catch (err) {
@@ -37,15 +39,15 @@
 
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
-		if (searchTerm.length >= minLength) {
+		if (searchTerm.length >= 2) {
 			debounceTimeout = setTimeout(() => {
 				fetchSuggestions(searchTerm);
-			}, 800);
+			}, 1000);
 		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && searchTerm.length >= minLength) {
+		if (event.key === 'Enter' && searchTerm.length >= 2) {
 			if (debounceTimeout) clearTimeout(debounceTimeout);
 			fetchSuggestions(searchTerm);
 		}
@@ -55,7 +57,7 @@
 		isFocused = true;
 		if (blurTimeout) clearTimeout(blurTimeout);
 
-		if (searchTerm.length >=minLength && suggestions.length === 0) {
+		if (searchTerm.length >=2 && suggestions.length === 0) {
 			fetchSuggestions(searchTerm);
 		}
 	}
@@ -134,7 +136,7 @@
 		<ul class="suggestions">
 			{#each suggestions as s}
 				<li
-					class="suggestion {mode === 'taxon' && !s.has_media ? 'no-media' : ''}"
+					class="suggestion {mode === 'taxon' && s && typeof s === 'object' && 'has_media' in s && !s.has_media ? 'no-media' : ''}"
 					role="option"
 					tabindex="0"
 					on:mousedown|preventDefault={() => selectSuggestion(s)}
