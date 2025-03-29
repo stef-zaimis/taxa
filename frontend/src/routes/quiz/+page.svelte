@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 
 	let rank = '';
@@ -10,8 +11,11 @@
 	let result: any = null;
 	let error: string | null = null;
 
+	function generateSessionId() {
+		return crypto.randomUUID();
+	}
+
 	async function fetchQuiz() {
-		console.log(`Fetching: http://localhost:8080${endpoint}?q=${query}`);
 		error = null;
 		result = null;
 
@@ -27,8 +31,13 @@
 			if (!res.ok) {
 				throw new Error(`API error: ${res.status}`);
 			}
-			result = await res.json();
-			console.log('Quiz response:', result);
+			const data = await res.json();
+			const encoded = encodeURIComponent(JSON.stringify(data));
+			console.log(JSON.stringify(data));
+
+			const sessionId = generateSessionId();
+			sessionStorage.setItem(`quiz-${sessionId}`, JSON.stringify(data));
+			goto(`/quiz/${sessionId}?data=${encoded}`);
 		} catch (err: any) {
 			error = err.message || 'Something went wrong';
 			console.error('Fetch error:', err);
