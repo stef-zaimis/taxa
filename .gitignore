@@ -9,6 +9,7 @@ frontend/node_modules/
 
 # Git stuff
 key.txt
+.env
 
 taxon_backup.dump
 
