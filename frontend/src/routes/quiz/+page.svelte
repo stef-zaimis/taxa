@@ -28,15 +28,29 @@
 
 		try {
 			const res = await fetch(`http://localhost:8080/api/quiz?${params.toString()}`);
+			console.log("calling", `http://localhost:8080/api/quiz?${params.toString()}`);
 			if (!res.ok) {
 				throw new Error(`API error: ${res.status}`);
 			}
 			const data = await res.json();
-			const encoded = encodeURIComponent(JSON.stringify(data));
-			console.log(JSON.stringify(data));
 
 			const sessionId = generateSessionId();
-			sessionStorage.setItem(`quiz-${sessionId}`, JSON.stringify(data));
+
+			const quizMeta = Object.fromEntries(params);
+
+			console.log('Saving quiz-meta:', quizMeta);
+			sessionStorage.setItem(`quiz-meta-${sessionId}`, JSON.stringify(quizMeta));
+
+			const dataWithMeta = {
+				...data,
+				rank,
+				name,
+				targetRank,
+				optionCount
+			};
+
+			const encoded = encodeURIComponent(JSON.stringify(dataWithMeta));
+			sessionStorage.setItem(`quiz-${sessionId}`, JSON.stringify(dataWithMeta));
 			goto(`/quiz/${sessionId}?data=${encoded}`);
 		} catch (err: any) {
 			error = err.message || 'Something went wrong';

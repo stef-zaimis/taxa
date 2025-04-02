@@ -22,6 +22,7 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 	gbifKey, imageURL := gbif.GetImage(pool, correctTaxon.ScientificName, correctTaxon.Authorship, correctTaxon.Rank)
 	correctTaxon.GBIFKey = gbifKey
 
+	fmt.Println("Fetching other options")
 	// #3: Get other options
 	distractorCount := optionCount - 1
 	incorrectTaxa, err := getRandomAdditionalTaxa(pool, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, distractorCount)
