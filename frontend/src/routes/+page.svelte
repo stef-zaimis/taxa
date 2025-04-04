@@ -39,7 +39,7 @@
 <div class="main-menu-wrapper">
 	<div class="menu-wrapper-inner">
 		<div class="menu-content">
-			<img src="/mm/title.png" alt="TAXA Title" class="title-img" />
+			<img src="/mm/title.png" alt="TAXA Title" class="title-img" draggable="false" />
 
 			<button
 				on:mousedown={handleMouseDown}
@@ -48,7 +48,7 @@
 				type="button"
 				class="menu-button menu-button--start"
 			>
-				<img src="/mm/start_button.png" alt="Start Button" class="menu-img" />
+				<img src="/mm/start_button.png" alt="Start Button" class="menu-img" draggable="false" />
 			</button>
 
 			<div class="button-group">
@@ -59,7 +59,7 @@
 					type="button"
 					class="menu-button"
 				>
-					<img src="/mm/options_button.png" alt="Options" class="menu-img" />
+					<img src="/mm/options_button.png" alt="Options" class="menu-img" draggable="false" />
 				</button>
 
 				<button
@@ -69,7 +69,7 @@
 					type="button"
 					class="menu-button"
 				>
-					<img src="/mm/settings_button.png" alt="Settings" class="menu-img" />
+					<img src="/mm/settings_button.png" alt="Settings" class="menu-img" draggable="false" />
 				</button>
 
 				<button
@@ -79,7 +79,7 @@
 					type="button"
 					class="menu-button"
 				>
-					<img src="/mm/exit_game_button.png" alt="Exit" class="menu-img" />
+					<img src="/mm/exit_game_button.png" alt="Exit" class="menu-img" draggable="false" />
 				</button>
 			</div>
 		</div>
