@@ -6,39 +6,80 @@
 	}
 
 	function goToOptions() {
-		//TODO
+		// TODO
 	}
 
 	function goToSettings() {
-		//TODO
+		// TODO
 	}
 
 	function exitGame() {
-		//TODO
+		// TODO
+	}
+
+	// Use the previous working logic:
+	function handleMouseDown(event: MouseEvent) {
+		const img = (event.currentTarget as HTMLElement).querySelector('.menu-img');
+		if (img) {
+			// Remove any existing bounce class so that :active works as expected
+			img.classList.remove('bounce');
+		}
+	}
+
+	function handleMouseUp(event: MouseEvent) {
+		const img = (event.currentTarget as HTMLElement).querySelector('.menu-img');
+		if (img) {
+			// Trigger bounce animation after mouseup
+			img.classList.add('bounce');
+			setTimeout(() => img.classList.remove('bounce'), 250);
+		}
 	}
 </script>
 
 <div class="main-menu-wrapper">
 	<div class="menu-wrapper-inner">
 		<div class="menu-content">
-			<img src="/mm/title.png" alt="TAXA Title" class="w-[90vw] max-w-4xl" />
+			<img src="/mm/title.png" alt="TAXA Title" class="title-img" />
 
-			<button on:click={startQuiz} type="button">
-				<img src="/mm/start_button.png" alt="Start Button" class="menu-button menu-button--start" />
+			<button
+				on:mousedown={handleMouseDown}
+				on:mouseup={handleMouseUp}
+				on:click={startQuiz}
+				type="button"
+				class="menu-button menu-button--start"
+			>
+				<img src="/mm/start_button.png" alt="Start Button" class="menu-img" />
 			</button>
 
 			<div class="button-group">
-
-				<button on:click={goToOptions} type="button">
-					<img src="/mm/options_button.png" alt="Options" class="menu-button"/>
+				<button
+					on:mousedown={handleMouseDown}
+					on:mouseup={handleMouseUp}
+					on:click={goToOptions}
+					type="button"
+					class="menu-button"
+				>
+					<img src="/mm/options_button.png" alt="Options" class="menu-img" />
 				</button>
 
-				<button on:click={goToSettings} type="button">
-					<img src="/mm/settings_button.png" alt="Settings" class="menu-button"/>
+				<button
+					on:mousedown={handleMouseDown}
+					on:mouseup={handleMouseUp}
+					on:click={goToSettings}
+					type="button"
+					class="menu-button"
+				>
+					<img src="/mm/settings_button.png" alt="Settings" class="menu-img" />
 				</button>
 
-				<button on:click={exitGame} type="button">
-					<img src="/mm/exit_game_button.png" alt="Exit" class="menu-button"/>
+				<button
+					on:mousedown={handleMouseDown}
+					on:mouseup={handleMouseUp}
+					on:click={exitGame}
+					type="button"
+					class="menu-button"
+				>
+					<img src="/mm/exit_game_button.png" alt="Exit" class="menu-img" />
 				</button>
 			</div>
 		</div>
@@ -77,6 +118,12 @@
 		max-width: 100%;
 	}
 
+	.title-img {
+		width: 90vw;
+		max-width: 64rem;
+		display: block;
+	}
+
 	.button-group {
 		display: flex;
 		flex-wrap: wrap;
@@ -91,37 +138,78 @@
 		}
 	}
 
-/* --------COMMUNAL BUTTONS---------------*/
+	/* -------- BUTTON STRUCTURE ---------------*/
 	.menu-button {
-		height: 1.9rem;
+		background: none;
+		border: none;
+		padding: 0;
 		cursor: pointer;
-		transition: transform 0.25s ease;
-		object-fit: contain;
+		display: inline-block;
 	}
 
-	.menu-button:hover {
+	.menu-img {
+		height: 1.9rem;
+		display: block;
+		object-fit: contain;
+		transition: transform 0.25s ease;
+		will-change: transform;
+	}
+
+	/* -------- HOVER BEHAVIOR ---------------*/
+	/* Default buttons shrink on hover */
+	.menu-button:hover .menu-img {
 		transform: scale(0.9);
 	}
 
+	/* Start button grows on hover */
+	.menu-button--start:hover .menu-img {
+		transform: scale(1.15);
+	}
+
+	/* -------- ACTIVE / CLICKED STATE ---------------*/
+	/* When the button is pressed, we override the hover transform */
+	.menu-button:active .menu-img {
+		transform: scale(1);
+	}
+
+	/* -------- BOUNCE ANIMATION ---------------*/
+	@keyframes bounceDown {
+		0% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(0.85);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+
+	.menu-img.bounce {
+		animation: bounceDown 0.25s ease;
+	}
+
+	/* -------- Sizing ---------------*/
+	/* For non-start buttons */
+	.menu-img {
+		height: 1.9rem;
+	}
+
 	@media (min-width: 768px) {
-		.menu-button {
+		.menu-img {
 			height: 3.6rem;
 		}
 	}
 
-/* ---------------START BUTTON-----------*/
-	.menu-button--start {
+	/* Start button image sizing */
+	.menu-button--start .menu-img {
 		height: 4rem;
 	}
 
 	@media (min-width: 768px) {
-		.menu-button--start {
+		.menu-button--start .menu-img {
 			height: 5.5rem;
 		}
 	}
-
-	.menu-button--start:hover {
-		transform: scale(1.15);
-	}
-
 </style>
+
