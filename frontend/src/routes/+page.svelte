@@ -122,6 +122,7 @@
 		width: 90vw;
 		max-width: 64rem;
 		display: block;
+		filter: drop-shadow(0 0 1.25rem rgba(255, 255, 255, 0.25));
 	}
 
 	.button-group {
