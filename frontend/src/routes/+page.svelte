@@ -39,7 +39,7 @@
 <div class="main-menu-wrapper">
 	<div class="menu-wrapper-inner">
 		<div class="menu-content">
-			<img src="/mm/title.png" alt="TAXA Title" class="title-img" draggable="false" />
+			<img src="/mm/title.svg" alt="TAXA Title" class="title-img" draggable="false" />
 
 			<button
 				on:mousedown={handleMouseDown}
