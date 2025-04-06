@@ -48,7 +48,7 @@
 				type="button"
 				class="menu-button menu-button--start"
 			>
-				<img src="/mm/start_button.png" alt="Start Button" class="menu-img" draggable="false" />
+				<img src="/mm/start_button.svg" alt="Start Button" class="menu-img" draggable="false" />
 			</button>
 
 			<div class="button-group">
@@ -59,7 +59,7 @@
 					type="button"
 					class="menu-button"
 				>
-					<img src="/mm/options_button.png" alt="Options" class="menu-img" draggable="false" />
+					<img src="/mm/options_button.svg" alt="Options" class="menu-img" draggable="false" />
 				</button>
 
 				<button
@@ -69,7 +69,7 @@
 					type="button"
 					class="menu-button"
 				>
-					<img src="/mm/settings_button.png" alt="Settings" class="menu-img" draggable="false" />
+					<img src="/mm/settings_button.svg" alt="Settings" class="menu-img" draggable="false" />
 				</button>
 
 				<button
@@ -79,7 +79,7 @@
 					type="button"
 					class="menu-button"
 				>
-					<img src="/mm/exit_game_button.png" alt="Exit" class="menu-img" draggable="false" />
+					<img src="/mm/exit_game_button.svg" alt="Exit" class="menu-img" draggable="false" />
 				</button>
 			</div>
 		</div>
@@ -91,7 +91,7 @@
 		width: 100vw;
 		min-height: 100vh;
 		overflow: hidden;
-		background-image: url('/mm/bg.png');
+		background-image: url('/mm/bg.svg');
 		background-size: cover;
 		background-position: center;
 		background-attachment: fixed;
@@ -119,8 +119,9 @@
 	}
 
 	.title-img {
-		width: 90vw;
-		max-width: 64rem;
+		width: 95vw;
+		max-width: 77rem;
+		margin-top: 2rem;
 		display: block;
 		filter: drop-shadow(0 0 1.25rem rgba(255, 255, 255, 0.25));
 	}
@@ -130,7 +131,7 @@
 		flex-wrap: wrap;
 		justify-content: center;
 		gap: 1.5rem;
-		padding-top: 1rem;
+		padding-top: 3.5rem;
 	}
 
 	@media (min-width: 768px) {
@@ -204,12 +205,12 @@
 
 	/* Start button image sizing */
 	.menu-button--start .menu-img {
-		height: 4rem;
+		height: 5.5rem;
 	}
 
 	@media (min-width: 768px) {
 		.menu-button--start .menu-img {
-			height: 5.5rem;
+			height: 7rem;
 		}
 	}
 </style>
