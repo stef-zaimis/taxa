@@ -214,7 +214,7 @@
 		z-index: 2;
 		color: black;
 		font-size: 1.5rem;
-		font-weight: bold;
+		font-weight: normal;
 		text-align: center;
 		width: 90%;
 		pointer-events: none;
