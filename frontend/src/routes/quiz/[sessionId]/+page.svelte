@@ -10,6 +10,7 @@
 	let selectedAnswer: string | null = null;
 	let resultText = '';
 	let resultColor = '';
+	let hintActive = false;
 
 
 	let quizMeta: {
@@ -87,46 +88,255 @@
 </script>
 
 <style>
-	.image {
-		max-width: 100%;
-		max-height: 600px;
-		object-fit: contain;
-		border-radius: 0.5rem;
-		margin-bottom: 1rem;
-		display: block;
-		margin-left: auto;
-		margin-right: auto;
+	:root {
+		font-size: 16px; /* 1rem = 16px (default), easily scalable */
 	}
-	button {
-		display: block;
-		margin: 0.5rem 0;
-		padding: 0.5rem 1rem;
-		font-size: 1.1rem;
+
+	.quiz-container {
+		width: 100vw;
+		min-height: 100vh;
+		background: url('/quiz/bg.webp');
+		background-size: cover;
+		background-position: center;
+		position: relative;
+		background-attachment: fixed;
+		background-repeat: no-repeat;
+		background-color: black;
+		overflow: hidden;
+		padding: 1rem;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.hud-placeholder {
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
+		width: auto;
+		height: auto;
+		z-index: 10;
+		height: 6rem; /* ~96px */
+		flex-shrink: 0;
+	}
+
+	.main-content {
+		flex: 1;
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		gap: 2.5rem; 
+		position: relative;
+		box-sizing: border-box;
+		height: 100vh;
+	}
+
+	.content-core {
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		gap: 2.5rem;
+		margin-right: 25rem;
+	}
+
+	.image-frame {
+		position: relative;
+		width: min(90vw, 55rem); /* Cap at 480px */
+		aspect-ratio: 1 / 1;
+		flex-shrink: 0;
+	}
+
+	.quiz-image {
+		position: absolute;
+		top: 5%;
+		left: 5%;
+		width: 90%;
+		height: 90%;
+		object-fit: contain;
+		z-index: 1;
+	}
+
+	.hint-icon {
+		position: absolute;
+		top: 0rem;
+		right: 0rem;
+		width: 11rem;
+		height: 11rem;
+		transform: translate(20%, -20%);
+		cursor: pointer;
+		z-index: 3;
+	}
+
+	.frame-overlay {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		z-index: 2;
+		pointer-events: none;
+	}
+
+	.options-container {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+		flex-shrink: 1;
+		flex-grow: 1;
+		min-width: 16rem;
+		max-width: 28rem;
+	}
+
+	.option-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem; /* 12px */
+	}
+
+	.die-icon {
+		width: 5rem;
+		height: 5rem;
+	}
+
+	.option-panel {
+		position: relative;
+		width: 25rem;
+		height: 6rem;
+		cursor: pointer;
+	}
+
+	.option-text {
+		position: absolute;
+		top: 48%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 2;
+		color: black;
+		font-size: 1.5rem;
+		font-weight: bold;
+		text-align: center;
+		width: 90%;
+		pointer-events: none;
+		line-height: 1.2;
+	}
+
+	.panel-bg {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		object-position: center;
+		z-index: 1;
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
+
+	.navigation-buttons {
+		position: absolute;
+		right: 2rem;
+		top: 50%;
+		transform: translateY(-50%);
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		gap: 1.5rem;
+	}
+
+	.nav-button {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		width: 8rem;
+		height: 8rem;
+	}
+
+	.nav-button:disabled img {
+		opacity: 0.4;
+		pointer-events: none;
+	}
+
+	.result-text {
+		position: absolute;
+		bottom: 2rem;
+		left: 50%;
+		transform: translateX(-50%);
+		background-color: white;
+		padding: 0.75rem 1.5rem;
+		border-radius: 0.75rem;
+		font-size: 1.2rem;
+		font-weight: bold;
+		box-shadow: 0 0.25rem 0.375rem rgba(0, 0, 0, 0.2);
+		white-space: nowrap;
+	}
+
+	@media (max-width: 768px) {
+		.main-content {
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.navigation-buttons {
+			position: static;
+			flex-direction: row;
+			justify-content: center;
+			margin-top: 2rem;
+			transform: none;
+		}
 	}
 </style>
 
-<h1>Quiz Question</h1>
+<div class="quiz-container">
+	<div class="hud-placeholder"></div>
 
-{#if imageUrl}
-	<img src={imageUrl} alt="Taxon image" class="image" />
-{/if}
+	<div class="main-content">
+		<div class="content-core">
+			<div class="image-frame">
+				{#if imageUrl}
+					<img src={imageUrl} alt="Taxon image" class="quiz-image" />
+				{/if}
+				<img class="hint-icon" src={hintActive ? '/quiz/lightbulb_on.webp' : '/quiz/lightbulb_off.webp'} alt="Hint" on:click={() => hintActive = !hintActive} />
+				
+				<img class="frame-overlay" src="/quiz/frame.webp" alt="Frame" />
+			</div>
+			
+			<div class="options-container">
+				{#each options.slice(0,6) as opt, i}
+					<div class="option-row">
+						<img src={`/quiz/dice/die_${i+1}.webp`} class="die-icon" />
+						<div class="option-panel" on:click={() => handleClick(opt.scientificName)} class:selected={selectedAnswer === opt.scientificName}>
+							<span class="option-text">{opt.scientificName}</span>
+							<img class="panel-bg" src="/quiz/option_panel.webp" alt="Option panel">
+						</div>
+					</div>
+				{/each}
 
-{#each options as opt}
-	<button on:click={() => handleClick(opt.scientificName)} disabled={selectedAnswer !== null}>
-		{opt.scientificName}
-	</button>
-{/each}
+				{#if options.length > 6}
+					{#each options.slice(6) as opt}
+						<div class="option-row">
+							<div class="option-panel" on:click={() => handleClick(opt.scientificName)} class:selected={selectedAnswer === opt.scientificName}>
+								<span class="option-text">{opt.scientificName}</span>
+								<img class="panel-bg" src="/quiz/option_panel.webp" alt="Option panel">
+							</div>
+						</div>
+					{/each}
+				{/if}
+			</div>
+		</div>
 
-{#if selectedAnswer}
-	<p style="color: {resultColor}; font-weight: bold;">{resultText}</p>
-	<button on:click={fetchNextQuestion} disabled={loading}>
-		{loading ? 'Loading...' : 'Next Question'}
-	</button>
-{/if}
+		<div class="navigation-buttons">
+			<button class="nav-button back" disabled>
+				<img src="/quiz/left_arrow.webp" />
+			</button>
+			<button class="nav-button forward" on:click={fetchNextQuestion} disabled={loading || !selectedAnswer}>
+				<img src="/quiz/right_arrow.webp" />
+			</button>
+		</div>
+	</div>
 
-{#if loading}
-	<p>Loading next question...</p>
-{/if}
-
-<br />
-<a href="quiz"> Back to Selection</a>
+		{#if selectedAnswer}
+			<p class="result-text" style="color: {resultColor};">{resultText}</p>
+	{/if}
+</div>
