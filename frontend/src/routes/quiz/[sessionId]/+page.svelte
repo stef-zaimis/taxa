@@ -85,6 +85,19 @@
 			resultColor = 'red';
 		}
 	}
+
+	function getOptionClass(optName: string) {
+		if (!selectedAnswer) return '';
+
+		const isCorrect = optName === correctAnswer;
+		const isSelected = optName === selectedAnswer;
+
+		return [
+			isCorrect ? 'correct' : '',
+			!isCorrect && isSelected ? 'incorrect' : '',
+			isSelected ? 'selected' : ''
+		].join(' ');
+	}
 </script>
 
 <style>
@@ -219,6 +232,20 @@
 		width: 90%;
 		pointer-events: none;
 		line-height: 1.2;
+		transition: color 0.3 ease, font-weight 0.2 ease;
+	}
+
+	.option-text.correct {
+		color: green;
+		font-weight: bold;
+	}
+
+	.option-text.incorrect {
+		color: red;
+	}
+
+	.option-text.selected {
+		font-weight: bold;
 	}
 
 	.panel-bg {
@@ -307,7 +334,7 @@
 					<div class="option-row">
 						<img src={`/quiz/dice/die_${i+1}.webp`} class="die-icon" />
 						<div class="option-panel" on:click={() => handleClick(opt.scientificName)} class:selected={selectedAnswer === opt.scientificName}>
-							<span class="option-text">{opt.scientificName}</span>
+							<span class={"option-text " + getOptionClass(opt.scientificName)}>{opt.scientificName}</span>
 							<img class="panel-bg" src="/quiz/option_panel.webp" alt="Option panel">
 						</div>
 					</div>
@@ -317,7 +344,7 @@
 					{#each options.slice(6) as opt}
 						<div class="option-row">
 							<div class="option-panel" on:click={() => handleClick(opt.scientificName)} class:selected={selectedAnswer === opt.scientificName}>
-								<span class="option-text">{opt.scientificName}</span>
+								<span class={"option-text " + getOptionClass(opt.scientificName)}>{opt.scientificName}</span>
 								<img class="panel-bg" src="/quiz/option_panel.webp" alt="Option panel">
 							</div>
 						</div>
