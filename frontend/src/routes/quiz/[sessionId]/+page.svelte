@@ -101,10 +101,6 @@
 </script>
 
 <style>
-	:root {
-		font-size: 16px; /* 1rem = 16px (default), easily scalable */
-	}
-
 	.quiz-container {
 		width: 100vw;
 		min-height: 100vh;
@@ -143,6 +139,7 @@
 		position: relative;
 		box-sizing: border-box;
 		height: 100vh;
+		flex-wrap: wrap;
 	}
 
 	.content-core {
@@ -152,11 +149,13 @@
 		align-items: center;
 		gap: 2.5rem;
 		margin-right: 25rem;
+		flex-wrap: wrap;
 	}
 
 	.image-frame {
 		position: relative;
-		width: min(90vw, 55rem); /* Cap at 480px */
+		width: 40vw;
+		max-width: 55rem;
 		aspect-ratio: 1 / 1;
 		flex-shrink: 0;
 	}
@@ -291,6 +290,7 @@
 		left: 50%;
 		transform: translateX(-50%);
 		background-color: white;
+		z-index: 20;
 		padding: 0.75rem 1.5rem;
 		border-radius: 0.75rem;
 		font-size: 1.2rem;
