@@ -112,7 +112,7 @@
 		background-repeat: no-repeat;
 		background-color: black;
 		overflow: hidden;
-		padding: 1rem;
+		padding: 1%;
 		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
@@ -148,16 +148,16 @@
 		justify-content: center;
 		align-items: center;
 		gap: 2.5rem;
-		margin-right: 25rem;
 		flex-wrap: wrap;
 	}
 
 	.image-frame {
 		position: relative;
-		width: 40vw;
+		width: clamp(320px, 35vw, 50rem);
 		max-width: 55rem;
 		aspect-ratio: 1 / 1;
-		flex-shrink: 0;
+		flex-shrink: 1;
+		flex-grow: 0;
 	}
 
 	.frame-bg {
@@ -181,10 +181,10 @@
 
 	.hint-icon {
 		position: absolute;
-		top: 0rem;
-		right: 0rem;
-		width: 11rem;
-		height: 11rem;
+		top: 0;
+		right: 0;
+		width: 22%;
+		aspect-ratio: 1;
 		transform: translate(20%, -20%);
 		cursor: pointer;
 		z-index: 3;
@@ -203,10 +203,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+		align-items: center;
 		flex-shrink: 1;
 		flex-grow: 1;
 		min-width: 16rem;
 		max-width: 28rem;
+		box-sizing: border-box;
 	}
 
 	.option-row {
@@ -216,14 +218,14 @@
 	}
 
 	.die-icon {
-		width: 5rem;
-		height: 5rem;
+		width: clamp(3rem, 6vw, 5rem);
+		height: clamp(3rem, 6vw, 5rem);
 	}
 
 	.option-panel {
 		position: relative;
-		width: 25rem;
-		height: 6rem;
+		width: clamp(14rem, 35vw, 25rem);
+		height: clamp(3.5rem, 8vw, 6rem);
 		cursor: pointer;
 	}
 
@@ -234,7 +236,7 @@
 		transform: translate(-50%, -50%);
 		z-index: 2;
 		color: black;
-		font-size: 1.5rem;
+		font-size: clamp(1rem, 3vw, 1.5rem);
 		font-weight: normal;
 		text-align: center;
 		width: 90%;
@@ -269,14 +271,22 @@
 
 	.navigation-buttons {
 		position: absolute;
-		right: 2rem;
+		right: 0%;
 		top: 50%;
 		transform: translateY(-50%);
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
-		align-items: center;
 		gap: 1.5rem;
+	}
+
+	@media (max-width: 925px) {
+		.navigation-buttons {
+			position: static;
+			flex-direction: row;
+			justify-content: center;
+			transform: none;
+			marign-top: 2rem;
+		}
 	}
 
 	.nav-button {
@@ -284,8 +294,8 @@
 		border: none;
 		padding: 0;
 		cursor: pointer;
-		width: 8rem;
-		height: 8rem;
+		width: clamp(4rem, 6vw, 8rem);
+		height: clamp(4rem, 6vw, 8rem);
 	}
 
 	.nav-button:disabled img {
