@@ -160,6 +160,15 @@
 		flex-shrink: 0;
 	}
 
+	.frame-bg {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		z-index: 0;
+	}
+
 	.quiz-image {
 		position: absolute;
 		top: 5%;
@@ -321,6 +330,8 @@
 	<div class="main-content">
 		<div class="content-core">
 			<div class="image-frame">
+				<img src="/quiz/frame-fill.png" alt="Frame Background" class="frame-bg" />
+	
 				{#if imageUrl}
 					<img src={imageUrl} alt="Taxon image" class="quiz-image" />
 				{/if}
