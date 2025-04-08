@@ -138,7 +138,7 @@
 		gap: 2.5rem; 
 		position: relative;
 		box-sizing: border-box;
-		min-height: 100vh;
+		height: auto;
 		flex-wrap: wrap;
 	}
 
