@@ -111,7 +111,7 @@
 		background-attachment: fixed;
 		background-repeat: no-repeat;
 		background-color: black;
-		overflow: hidden;
+		overflow: auto;
 		padding: 1%;
 		box-sizing: border-box;
 		display: flex;
@@ -138,7 +138,7 @@
 		gap: 2.5rem; 
 		position: relative;
 		box-sizing: border-box;
-		height: 100vh;
+		min-height: 100vh;
 		flex-wrap: wrap;
 	}
 
@@ -285,7 +285,7 @@
 			flex-direction: row;
 			justify-content: center;
 			transform: none;
-			marign-top: 2rem;
+			margin-top: 2rem;
 		}
 	}
 
@@ -322,14 +322,6 @@
 		.main-content {
 			flex-direction: column;
 			align-items: center;
-		}
-
-		.navigation-buttons {
-			position: static;
-			flex-direction: row;
-			justify-content: center;
-			margin-top: 2rem;
-			transform: none;
 		}
 	}
 </style>
