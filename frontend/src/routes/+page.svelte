@@ -113,7 +113,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 2rem;
+		gap: clamp(1vh, 2.5vh, 3rem);
 		width: 100%;
 		max-width: 100%;
 	}
@@ -121,7 +121,9 @@
 	.title-img {
 		width: 95vw;
 		max-width: 77rem;
-		margin-top: 2rem;
+		max-height: 60vh;
+		height: auto;
+		margin-top: clamp(1vh, 4vh, 3rem);
 		display: block;
 		filter: drop-shadow(0 0 1.25rem rgba(255, 255, 255, 0.25));
 	}
@@ -131,7 +133,7 @@
 		flex-wrap: wrap;
 		justify-content: center;
 		gap: 1.5rem;
-		padding-top: 3.5rem;
+		padding-top: clamp(1vh, 5vh, 4rem);
 	}
 
 	@media (min-width: 768px) {
@@ -150,7 +152,9 @@
 	}
 
 	.menu-img {
-		height: 1.9rem;
+		height: clamp(3.2vh, 3.6rem, 6vh);
+		width: auto;
+		max-width: 80vw;
 		display: block;
 		object-fit: contain;
 		transition: transform 0.25s ease;
@@ -192,26 +196,10 @@
 	}
 
 	/* -------- Sizing ---------------*/
-	/* For non-start buttons */
-	.menu-img {
-		height: 1.9rem;
-	}
-
-	@media (min-width: 768px) {
-		.menu-img {
-			height: 3.6rem;
-		}
-	}
 
 	/* Start button image sizing */
 	.menu-button--start .menu-img {
-		height: 5.5rem;
-	}
-
-	@media (min-width: 768px) {
-		.menu-button--start .menu-img {
-			height: 7rem;
-		}
+		height: clamp(4vh, 6rem, 10vh);
+		max-width: 90vw;
 	}
 </style>
-
