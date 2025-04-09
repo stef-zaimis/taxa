@@ -169,7 +169,7 @@
 
 	.image-frame {
 		position: relative;
-		width: clamp(320px, 48vw, 58rem);
+		width: clamp(20rem, 48vw, 58rem);
 		aspect-ratio: 1 / 1;
 		flex-shrink: 1;
 		flex-grow: 0;
@@ -265,7 +265,7 @@
 	.option-row {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem; /* 12px */
+		gap: 0.75rem;
 	}
 
 	.die-icon {
@@ -330,13 +330,18 @@
 		gap: 1.5rem;
 	}
 
-	@media (max-width: 925px) {
+	@media (max-width: 1280px) {
 		.navigation-buttons {
 			position: static;
 			flex-direction: row;
 			justify-content: center;
 			transform: none;
 			margin-top: 2rem;
+		}
+
+		.main-content {
+			flex-direction: column;
+			align-items: center;
 		}
 	}
 
@@ -369,12 +374,6 @@
 		white-space: nowrap;
 	}
 
-	@media (max-width: 768px) {
-		.main-content {
-			flex-direction: column;
-			align-items: center;
-		}
-	}
 </style>
 
 <div class="quiz-container">
