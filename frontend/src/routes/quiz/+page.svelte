@@ -64,6 +64,20 @@
 		margin: 0.5rem;
 		padding: 0.5rem;
 		font-size: 1rem;
+		color: black;
+		background-color: white;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+	}
+
+	button {
+		cursor: pointer;
+		background-color: #eee;
+		color: black;
+	}
+
+	button:hover {
+		background-color: #bbb;
 	}
 </style>
 

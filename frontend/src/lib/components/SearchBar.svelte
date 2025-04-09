@@ -86,13 +86,25 @@
 		width: 100%;
 		max-width: 500px;
 	}
+
+	.search-container input {
+		width: 100%;
+		padding: 0.5rem;
+		font-size: 1rem;
+		color: black;
+		background-color: white;
+		border: 1px solid #ccc;
+		border-radiu: 4px;
+	}
+
 	.suggestions {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		position: absolute;
 		background: white;
-		border: 5px solid #ccc;
+		border: 1px solid #ccc;
+		color: black;
 		border-radius: 0.25rem;
 		width: 100%;
 		max-height: 200px;
@@ -103,8 +115,8 @@
 		padding: 0.5rem;
 		cursor: pointer;
 	}
-	.suggestions:hover {
-		background: #f0f0f0;
+	.suggestion:hover {
+		background-color: #eee;
 	}
 	.no-media {
 		color:red;
