@@ -83,18 +83,31 @@
 <style>
 	.search-container {
 		position: relative;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
 		width: 100%;
-		max-width: 500px;
 	}
 
-	.search-container input {
+	.searchbar-input {
 		width: 100%;
-		padding: 0.5rem;
-		font-size: 1rem;
+		height: 100%;
+		background: transparent;
+		border: none;
+		outline: none;
+		box-shadow: none;
 		color: black;
-		background-color: white;
-		border: 1px solid #ccc;
-		border-radiu: 4px;
+		font-family: 'OldNewspaperTypes', serif;
+		font-size: 1rem;
+		z-index: 1;
+		text-align: center;
+	}
+
+	.searchbar-input::placeholder {
+		text-align: center;
+		font-size: 1.5rem;
 	}
 
 	.suggestions {
@@ -106,11 +119,15 @@
 		border: 1px solid #ccc;
 		color: black;
 		border-radius: 0.25rem;
+		top: 100%;
+		left: 0;
 		width: 100%;
 		max-height: 200px;
+		font-family: 'OldNewspaperTypes', serif !important;
 		overflow-y: auto;
 		z-index: 1000;
 	}
+
 	.suggestion {
 		padding: 0.5rem;
 		cursor: pointer;
@@ -120,6 +137,17 @@
 	}
 	.no-media {
 		color:red;
+	}
+	.loading-message {
+		font-family: 'OldNewspaperTypes', serif !important;
+		position: absolute;
+		top: 60%;
+		left: 0;
+		width: 100%;
+		margin-top: 0.25rem;
+		text-align: center;
+		color: black;
+		z-index: 999;
 	}
 	i {
 		font-style: italic;
@@ -136,10 +164,11 @@
 		on:focus={handleFocus}
 		on:blur={handleBlur}
 		autocomplete="off"
+		class="searchbar-input"
 	/>
 
 	{#if isLoading}
-		<p>Loading...</p>
+		<p class="loading-message">Loading...</p>
 	{/if}
 
 	{#if isFocused && suggestions.length > 0}
@@ -168,6 +197,6 @@
 	{/if}
 
 	{#if error}
-		<p style="color: red;">{error}</p>
+		<p class="loading-message" style="color: red;">{error}</p>
 	{/if}
 </div>
