@@ -7,6 +7,8 @@
 	let name = '';
 	let targetRank = '';
 	let optionCount = null;
+	
+	let loading = false;
 
 	let result: any = null;
 	let error: string | null = null;
@@ -18,6 +20,11 @@
 	async function fetchQuiz() {
 		error = null;
 		result = null;
+		loading = true;
+
+		if (optionCount === null) {
+			optionCount = 0;
+		}
 
 		const params = new URLSearchParams({
 			rank,
@@ -55,6 +62,8 @@
 		} catch (err: any) {
 			error = err.message || 'Something went wrong';
 			console.error('Fetch error:', err);
+		} finally {
+			loading = false;
 		}
 	}
 </script>
@@ -106,6 +115,45 @@
 		justify-content: center;
 		align-items: center;
 		gap: 7rem;
+	}
+
+	.top-popup {
+		position: absolute;
+		top: 2rem;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 999;
+		padding: 1.25rem 2.5rem;
+		border-radius: 1rem;
+		font-size: 2.25rem;
+		font-weight: bold;
+		font-family: 'OldNewspaperTypes', serif;
+		background-color: rgba(255, 255, 255, 0.95);
+		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+		white-space: nowrap;
+		text-align: center;
+		pointer-events: none;
+		animation: fadeInTop 0.2s ease-out;
+	}
+
+	.loading-popup {
+		color: black;
+	}
+
+	.error-popup {
+		color: red;
+		border: 2px solid red;
+	}
+
+	@keyframes fadeInTop {
+		from {
+			opacity: 0;
+			transform: translateX(-50%) translateY(-1rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(-50%) translateY(0);
+		}
 	}
 
 	.inputs {
@@ -237,6 +285,16 @@
 </style>
 
 <div class="all-content">
+	{#if loading}
+		<div class="top-popup loading-popup">
+			Loading...
+		</div>
+	{:else if error}
+		<div class="top-popup error-popup">
+			Error loading question
+		</div>
+	{/if}
+
 	<h1>Create Your Quiz</h1>
 	<div class="inputs">
 		<div class="selection-wrapper">

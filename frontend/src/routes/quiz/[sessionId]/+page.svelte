@@ -158,6 +158,45 @@
 		flex-wrap: wrap;
 	}
 
+	.top-popup {
+		position: absolute;
+		top: 1.5rem;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 999;
+		padding: 1rem 2rem;
+		border-radius: 0.75rem;
+		font-size: 2rem;
+		font-weight: bold;
+		background-color: rgba(255, 255, 255, 0.9);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+		white-space: nowrap;
+		text-align: center;
+		pointer-events: none;
+		animation: fadeIn 0.2s ease-out;
+	}
+
+	.loading-popup {
+		color: black;
+	}
+
+	.error-popup {
+		color: red;
+		background-color: rgba(255, 255, 255, 0.95);
+		border: 2px solid red;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateX(-50%) translateY(-1rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(-50%) translateY(0);
+		}
+	}
+
 	.content-core {
 		display: flex;
 		flex-direction: row;
@@ -377,6 +416,16 @@
 </style>
 
 <div class="quiz-container">
+	{#if loading}
+		<div class="top-popup loading-popup">
+			Loading...
+		</div>
+	{:else if resultText === "Something went wrong."}
+		<div class="top-popup error-popup">
+			Error loading question
+		</div>
+	{/if}
+
 	<div class="hud-placeholder"></div>
 
 	<div class="main-content">
