@@ -6,7 +6,9 @@
 	let authorship = '';
 	let name = '';
 	let targetRank = '';
-	let optionCount = 4;
+	let optionCount = null;
+	
+	let loading = false;
 
 	let result: any = null;
 	let error: string | null = null;
@@ -18,6 +20,11 @@
 	async function fetchQuiz() {
 		error = null;
 		result = null;
+		loading = true;
+
+		if (optionCount === null) {
+			optionCount = 0;
+		}
 
 		const params = new URLSearchParams({
 			rank,
@@ -55,34 +62,278 @@
 		} catch (err: any) {
 			error = err.message || 'Something went wrong';
 			console.error('Fetch error:', err);
+		} finally {
+			loading = false;
 		}
 	}
 </script>
 
 <style>
-	input, button {
+	@font-face {
+		font-family: 'OldNewspaperTypes';
+		src: url('/fonts/OldNewspaperTypes.ttf') format('truetype');
+		font-weight: normal;
+		font-style: normal;
+	}
+
+	h1, body {
+		color: #ccc;
+		font-family: 'OldNewspaperTypes', serif;
+	}
+
+	h1 {
+		font-size: 5rem;
+	}
+
+	input,
+	button,
+	::placeholder,
+	.panel-content input,
+	.search-container input,
+	.suggestion {
+		font-family: 'OldNewspaperTypes', serif !important;
+	}
+
+	input:focus,
+	.search-container input:focus {
+		outline: none;
+		box-shadow: none;
+		border: none;
+	}
+
+	.all-content {
+		width: 100%;
+		height: 100vh;
+		overflow: hidden;
+		background-image: url('/mm/bg.svg');
+		background-size: cover;
+		background-position: center;
+		background-attachment: fixed;
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		gap: 7rem;
+	}
+
+	.top-popup {
+		position: absolute;
+		top: 2rem;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 999;
+		padding: 1.25rem 2.5rem;
+		border-radius: 1rem;
+		font-size: 2.25rem;
+		font-weight: bold;
+		font-family: 'OldNewspaperTypes', serif;
+		background-color: rgba(255, 255, 255, 0.95);
+		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+		white-space: nowrap;
+		text-align: center;
+		pointer-events: none;
+		animation: fadeInTop 0.2s ease-out;
+	}
+
+	.loading-popup {
+		color: black;
+	}
+
+	.error-popup {
+		color: red;
+		border: 2px solid red;
+	}
+
+	@keyframes fadeInTop {
+		from {
+			opacity: 0;
+			transform: translateX(-50%) translateY(-1rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(-50%) translateY(0);
+		}
+	}
+
+	.inputs {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		gap: 3rem;
+	}
+
+	.selection-wrapper {
+		position: relative;
+		width: 100%;
+		max-width: 1000px;
+		marg: 2rem auto;
+		aspect-ratio: 1404 / 269;
+	}
+
+	.panel-bg {
+		width: 100%;
+		height: auto;
+		display: block;
+		border-radius: 12px;
+	}
+
+	.panel-content {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+		justify-content: space-evenly;
+		height: 100%;
+		width: 100%;
+		align-items: center;
+		padding: 0.5rem 1rem;
+		box-sizing: border-box;
+	}
+
+	.panel-content input,
+	.panel-content :global(.search-container input) {
+		width: 90%;
+		height: 60px;
+		background-size: cover;
+		background-position: center;
+		color: black;
+		font-size: 1rem;
+		padding: 0.75rem;
+		border-radius: 8px;
+		border: none;
+	}
+
+	.input-panel {
+		position: relative;
+		height: 100%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.input-panel img {
+		position: relative;
+		height: 100%;
+		width: auto;
+		z-index: 0;
+		object-fit: contain;
+		display: block;
+		border-radius: 8px;
+	}
+
+	.input-panel input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		background: transparent;
+		border: none;
+		padding: 0.5rem 1rem;
+		color: black;
+		font-family: 'OldNewspaperTypes', serif;
+		font-size: 1rem;
+		z-index: 1;
+	}
+
+	.input-overlay {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 1;
+	}
+
+	.input-wrapper {
+		width: 90%;
+		height: 100%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.input-wrapper input {
+		width: 100%;
+		height: 100%;
+		background: transparent;
+		border: none;
+		outline: none;
+		color: black;
+		font-family: 'OldNewspaperTypes', serif;
+		font-size: 1.5rem;
+		text-align: center;
+	}
+
+	button {
 		margin: 0.5rem;
 		padding: 0.5rem;
 		font-size: 1rem;
+		color: black;
+		border: 1px solid #ccc;
+		cursor: pointer;
+		background-color: #eee;
+		border-radius: 4px;
+	}
+
+	button:hover {
+		background-color: #bbb;
 	}
 </style>
 
-<h1>Taxa Quiz Generator</h1>
+<div class="all-content">
+	{#if loading}
+		<div class="top-popup loading-popup">
+			Loading...
+		</div>
+	{:else if error}
+		<div class="top-popup error-popup">
+			Error loading question
+		</div>
+	{/if}
 
-<div>
-	<SearchBar mode="taxon" onSelect={({ name: selectedName, rank: selectedRank, authorship: selectedAuthorship }) => {
-		name = selectedName;
-		rank = selectedRank;
-		authorship = selectedAuthorship;
-	}} placeholder="Search for taxon (e.g. Animalia)" />
-	
-	<input placeholder="Scientific Name (e.g. Animalia)" bind:value={name} />
-	<input placeholder="Authorship (e.g. Linnaeus, 1758)" bind:value={authorship} />
-	<SearchBar mode="rank" onSelect={({ name: selectedRank }) => { rank = selectedRank; }} placeholder="Search for rank (e.g. Kingdom)" />
-	<SearchBar mode="rank" onSelect={({ name: selectedTargetRank}) => { targetRank = selectedTargetRank; }} placeholder="Search for target rank (e.g. Order)" />
-	<input type="number" min="2" max="20" placeholder="Option Count" bind:value={optionCount} />
-	<br />
-	<button on:click={fetchQuiz}>Get Quiz Question</button>
+	<h1>Create Your Quiz</h1>
+	<div class="inputs">
+		<div class="selection-wrapper">
+			<img src="/selection/wooden_board.png" alt="Wooden Panel" class="panel-bg" />
+
+			<div class="panel-content">
+				<div class="input-panel"> 
+					<img src="/selection/taxon_panel.png" alt="Taxon Input" />
+
+					<div class="input-overlay">
+						<SearchBar mode="taxon" onSelect={({ name: selectedName, rank: selectedRank, authorship: selectedAuthorship }) => {
+							name = selectedName;
+							rank = selectedRank;
+							authorship = selectedAuthorship;
+						}} placeholder="Search for taxon (e.g. Animalia)" />
+					</div>
+				</div>
+				
+				<div class="input-panel"> 
+					<img src="/selection/taxonomic_level_panel.png" alt="Taxon Input" />
+
+					<div class="input-overlay">
+						<SearchBar mode="rank" onSelect={({ name: selectedTargetRank}) => { targetRank = selectedTargetRank; }} placeholder="Search for target rank (e.g. Order)" />
+					</div>
+				</div>
+				
+				<div class="input-panel">
+					<img src="/selection/option_count_panel.png" alt="Taxon Input" />
+
+					<div class="input-overlay">
+						<div class="input-wrapper">
+							<input type="number" min="2" max="20" placeholder="Options" bind:value={optionCount} />
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<button on:click={fetchQuiz}>Get Quiz Question</button>
+	</div>
 </div>
 
 {#if error}
