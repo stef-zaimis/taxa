@@ -15,6 +15,7 @@
 
 	async function fetchSuggestions(query: string) {
 		isLoading = true;
+		console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
 		try {
 			const baseUrl = import.meta.env.VITE_API_URL;
 			const endpoint = mode === 'rank' ? '/search/ranks' : '/search/taxa';
