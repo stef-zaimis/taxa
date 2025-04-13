@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stef-zaimis/taxa/internal/gbif"
@@ -12,18 +13,32 @@ import (
 // Assemblae a full quiz question with correct/incorrect taxa and an image
 func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
 
-	// #1: Get correct taxon
-	correctTaxon, ancestorID, err := getTaxonWithMedia(pool, parentRank, parentName, targetRank)
-	if err != nil {
-		return Question{}, fmt.Errorf("failed to get correct taxon: %w", err)
-	}
+	maxAttempts := 10
+	var correctTaxon Taxon
+	var ancestorID, gbifKey, imageURL string
+	
+	for i:=0; i<maxAttempts; i++ {
+		// #1: Get correct taxon
 
-	// #2: Get image
-	gbifKey, imageURL := gbif.GetImage(pool, correctTaxon.ScientificName, correctTaxon.Authorship, correctTaxon.Rank)
+		taxon, id, err := getTaxonWithMedia(pool, parentRank, parentName, targetRank)
+		if err != nil {
+			continue
+		}
+
+		key, img := gbif.GetImage(pool, taxon.ScientificName, taxon.Authorship, taxon.Rank)
+		if img != "" && !strings.Contains(img, "localhost") {
+			correctTaxon = taxon
+			ancestorID = id
+			gbifKey = key
+			imageURL = img
+			break
+		}
+	}
 	correctTaxon.GBIFKey = gbifKey
 
-	fmt.Println("Fetching other options")
 	// #3: Get other options
+	fmt.Println("Fetching other options")
+
 	distractorCount := optionCount - 1
 	incorrectTaxa, err := getRandomAdditionalTaxa(pool, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, distractorCount)
 	if err != nil {

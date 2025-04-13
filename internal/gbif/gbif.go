@@ -26,7 +26,7 @@ func GetImage(pool *pgxpool.Pool, taxon, authorship, rank string) (string, strin
 
 	err := pool.QueryRow(ctx, query, taxon, rank).Scan(&gbifKey)
 	if err == nil && gbifKey != "" {
-		imageURL := fetchGBIFImageFromAPI(gbifKey)
+		imageURL := fetchGBIFImageFromAPI(pool, gbifKey, taxon, rank)
 		return gbifKey, imageURL
 	}
 
@@ -35,6 +35,7 @@ func GetImage(pool *pgxpool.Pool, taxon, authorship, rank string) (string, strin
 	gbifKey = fetchGBIFKeyFromAPI(taxon, rank)
 
 	if gbifKey == "" {
+		pool.Exec(ctx, "UPDATE taxon SET has_media = FALSE WHERE lower(scientific_name) = lower($1) AND lower(taxon_rank) = lower($2)", taxon, rank)
 		fmt.Printf("No GBIF taxon key found for: %s\n", taxon)
 		return "", ""
 	}
@@ -48,7 +49,7 @@ func GetImage(pool *pgxpool.Pool, taxon, authorship, rank string) (string, strin
 		fmt.Printf("Updated GBIF key for %s: %s\n", taxon, gbifKey)
 	}
 
-	imageURL := fetchGBIFImageFromAPI(gbifKey)
+	imageURL := fetchGBIFImageFromAPI(pool, gbifKey, taxon, rank)
 	return gbifKey, imageURL
 }
 
@@ -70,6 +71,10 @@ func fetchGBIFKeyFromAPI(taxon, rank string) string {
 
 	body, _ := io.ReadAll(resp.Body)
 	json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Println("Error unmarshalling GBIF response:", err)
+		return ""
+	}
 
 	if len(result.Results) > 0 {
 		return strconv.Itoa(result.Results[0].Key)
@@ -79,7 +84,7 @@ func fetchGBIFKeyFromAPI(taxon, rank string) string {
 }
 
 // Query the occurrence API for an image
-func fetchGBIFImageFromAPI(gbifKey string) string {
+func fetchGBIFImageFromAPI(pool *pgxpool.Pool, gbifKey, taxon, rank string) string {
 	resp, err := http.Get(gbifOccurrenceAPI + gbifKey)
 	if err != nil {
 		fmt.Println("Error querying GBIF occurrence API:", err)
@@ -101,11 +106,14 @@ func fetchGBIFImageFromAPI(gbifKey string) string {
 	var images []string
 	for _, occurrence := range result.Results {
 		for _, media := range occurrence.Media {
-			images = append(images, media.Identifier)
+			if media.Identifier != "" && !strings.Contains(media.Identifier, "localhost") {
+				images = append(images, media.Identifier)
+			}
 		}
 	}
 
 	if len(images) == 0 {
+		pool.Exec(ctx, "UPDATE taxon SET has_media = FALSE WHERE lower(scientific_name) = lower($1) AND lower(taxon_rank) = lower($2)", taxon, rank)
 		fmt.Println("No images found for GBIF key:", gbifKey)
 		return ""
 	}
