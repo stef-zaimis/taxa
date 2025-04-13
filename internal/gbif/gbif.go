@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -85,6 +86,7 @@ func fetchGBIFKeyFromAPI(taxon, rank string) string {
 
 // Query the occurrence API for an image
 func fetchGBIFImageFromAPI(pool *pgxpool.Pool, gbifKey, taxon, rank string) string {
+	ctx := context.Background()
 	resp, err := http.Get(gbifOccurrenceAPI + gbifKey)
 	if err != nil {
 		fmt.Println("Error querying GBIF occurrence API:", err)
