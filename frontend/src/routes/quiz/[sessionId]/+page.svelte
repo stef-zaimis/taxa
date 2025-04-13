@@ -14,6 +14,10 @@
 
 	let imageClass = '';
 
+	let locked = false
+	let score = 0;
+	let totalQuestions = 0;
+
 	let quizMeta: {
 		rank: string;
 		name: string;
@@ -48,6 +52,7 @@
 		correctAnswer = data.correctAnswer.scientificName;
 		resultText = '';
 		selectedAnswer = null;
+		locked = false;
 	}
 
 	async function fetchNextQuestion() {
@@ -77,8 +82,14 @@
 	}
 
 	function handleClick(selected: string) {
+		if (locked || selectedAnswer) return;
+	
+		locked = true;
 		selectedAnswer = selected;
+		totalQuestions += 1;
+	
 		if (selected === correctAnswer) {
+			score += 1;
 			resultText = 'Correct!';
 			resultColor = 'green';
 		} else {
@@ -426,7 +437,11 @@
 		</div>
 	{/if}
 
-	<div class="hud-placeholder"></div>
+	<div class="hud-placeholder">
+		<div style="font-size: 2rem; font-weight: bold; color: white;">
+			Score: {score} / {totalQuestions}
+		</div>
+	</div>
 
 	<div class="main-content">
 		<div class="content-core">

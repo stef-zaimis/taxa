@@ -309,7 +309,7 @@
 							name = selectedName;
 							rank = selectedRank;
 							authorship = selectedAuthorship;
-						}} placeholder="Search for taxon (e.g. Animalia)" />
+						}} placeholder="Taxon (e.g. Animalia)" />
 					</div>
 				</div>
 				
@@ -317,7 +317,7 @@
 					<img src="/selection/taxonomic_level_panel.png" alt="Taxon Input" />
 
 					<div class="input-overlay">
-						<SearchBar mode="rank" onSelect={({ name: selectedTargetRank}) => { targetRank = selectedTargetRank; }} placeholder="Search for target rank (e.g. Order)" />
+						<SearchBar mode="rank" onSelect={({ name: selectedTargetRank}) => { targetRank = selectedTargetRank; }} placeholder="Target Rank (e.g. Order)" />
 					</div>
 				</div>
 				
