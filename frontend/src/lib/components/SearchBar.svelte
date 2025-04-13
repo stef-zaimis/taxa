@@ -16,8 +16,9 @@
 	async function fetchSuggestions(query: string) {
 		isLoading = true;
 		try {
-			const endpoint = mode === 'rank' ? '/api/search/ranks' : '/api/search/taxa';
-			const res = await fetch(`http://localhost:8080${endpoint}?q=${encodeURIComponent(query)}`);
+			const baseUrl = import.meta.env.VITE_API_URL;
+			const endpoint = mode === 'rank' ? '/search/ranks' : '/search/taxa';
+			const res = await fetch(`${baseUrl}${endpoint}?q=${encodeURIComponent(query)}`);
 			if (res.ok) {
 				suggestions = await res.json();
 			} else {

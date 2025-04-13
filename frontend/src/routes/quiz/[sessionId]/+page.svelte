@@ -72,7 +72,8 @@
 
 		try {
 			const { rank, name, targetRank, optionCount } = quizMeta;
-			const url = `http://localhost:8080/api/quiz?rank=${rank}&name=${name}&targetRank=${targetRank}&optionCount=${optionCount}`;
+			const baseUrl = import.meta.env.VITE_API_URL;
+			const url = `${baseUrl}/quiz?rank=${encodeURIComponent(rank)}&name=${encodeURIComponent(name)}&targetRank=${encodeURIComponent(targetRank)}&optionCount=${optionCount}`;
 			const res = await fetch(url);
 			if (!res.ok) throw new Error("Failed to fetch next question");
 
