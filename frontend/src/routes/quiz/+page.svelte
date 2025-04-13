@@ -7,6 +7,7 @@
 	let name = '';
 	let targetRank = '';
 	let optionCount = null;
+	let questionCount = null;
 	
 	let loading = false;
 
@@ -43,7 +44,7 @@
 
 			const sessionId = generateSessionId();
 
-			const quizMeta = Object.fromEntries(params);
+			const quizMeta = { ...Object.fromEntries(params), questionCount: questionCount?.toString() || null };
 
 			console.log('Saving quiz-meta:', quizMeta);
 			sessionStorage.setItem(`quiz-meta-${sessionId}`, JSON.stringify(quizMeta));
@@ -327,6 +328,14 @@
 					<div class="input-overlay">
 						<div class="input-wrapper">
 							<input type="number" min="2" max="20" placeholder="Options" bind:value={optionCount} />
+						</div>
+					</div>
+				</div>
+				<div class="input-panel">
+					<img src="/selection/option_count_panel.png" alt="Taxon Input" />
+					<div class="input-overlay">
+						<div class="input-wrapper">
+							<input type="number" min="1" max="50" placeholder="Questions" bind:value={questionCount} />
 						</div>
 					</div>
 				</div>

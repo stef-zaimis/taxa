@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
+	import { goto } from '$app/navigation';
 
 	let loading = false;
 	let imageUrl = '';
@@ -23,7 +24,10 @@
 		name: string;
 		targetRank: string;
 		optionCount: number;
+		questionCount?: string | null;
 	} | null = null;
+
+	let questionCount = null;
 
 	onMount(() => {
 		const $pageData = get(page);
@@ -38,6 +42,7 @@
 		const metaRaw = sessionStorage.getItem(`quiz-meta-${sessionId}`);
 		if (metaRaw) {
 			quizMeta = JSON.parse(metaRaw);
+			questionCount = quizMeta?.questionCount ? parseInt(quizMeta.questionCount) : null;
 		} else {
 			console.error('No quizMeta found in sessionSTorage');
 		}
@@ -443,6 +448,8 @@
 		</div>
 	</div>
 
+	<button class="return-button" on:click={() => goto('/quiz')}>Return to the selection screen</button>
+	
 	<div class="main-content">
 		<div class="content-core">
 			<div class="image-frame">
@@ -485,7 +492,7 @@
 			<button class="nav-button back" disabled>
 				<img src="/quiz/left_arrow.webp" />
 			</button>
-			<button class="nav-button forward" on:click={fetchNextQuestion} disabled={loading || !selectedAnswer}>
+			<button class="nav-button forward" on:click={fetchNextQuestion} disabled={loading || !selectedAnswer || (questionCount !== null && totalQuestions >= questionLimit)}>
 				<img src="/quiz/right_arrow.webp" />
 			</button>
 		</div>
