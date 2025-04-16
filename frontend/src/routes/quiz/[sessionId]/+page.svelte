@@ -9,8 +9,8 @@
 	let options: any[] = [];
 	let correctAnswer = '';
 	let selectedAnswer: string | null = null;
-	let resultText = '';
-	let resultColor = '';
+	//let resultText = '';
+	//let resultColor = '';
 	let hintActive = false;
 
 	let imageClass = '';
@@ -55,7 +55,7 @@
 		imageUrl = data.imageUrl;
 		options = data.options;
 		correctAnswer = data.correctAnswer.scientificName;
-		resultText = '';
+		//resultText = '';
 		selectedAnswer = null;
 		locked = false;
 	}
@@ -96,11 +96,11 @@
 	
 		if (selected === correctAnswer) {
 			score += 1;
-			resultText = 'Correct!';
-			resultColor = 'green';
+			//resultText = 'Correct!';
+			//resultColor = 'green';
 		} else {
-			resultText = `Incorrect, the correct answer was: ${correctAnswer}`;
-			resultColor = 'red';
+			//resultText = `Incorrect, the correct answer was: ${correctAnswer}`;
+			//resultColor = 'red';
 		}
 	}
 
@@ -498,8 +498,4 @@
 			</button>
 		</div>
 	</div>
-
-		{#if selectedAnswer}
-			<p class="result-text" style="color: {resultColor};">{resultText}</p>
-	{/if}
 </div>
