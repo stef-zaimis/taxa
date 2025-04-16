@@ -201,7 +201,7 @@
 		background-size: cover;
 		background-position: center;
 		color: black;
-		font-size: 1rem;
+		font-size: 1.5rem;
 		padding: 0.75rem;
 		border-radius: 8px;
 		border: none;

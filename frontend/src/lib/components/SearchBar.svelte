@@ -69,6 +69,7 @@
 	}
 
 	function selectSuggestion(suggestion: any) {
+		searchTerm = mode === 'taxon' ? `${suggestion.scientific_name}${suggestion.authorship ? ` ${suggestion.authorship}` : ''}` : suggestion;
 		onSelect(mode === 'taxon' ? {
 			name: suggestion.scientific_name,
 			rank: suggestion.rank,
@@ -102,7 +103,7 @@
 		box-shadow: none;
 		color: black;
 		font-family: 'OldNewspaperTypes', serif;
-		font-size: 1rem;
+		font-size: 1.5rem;
 		z-index: 1;
 		text-align: center;
 	}
