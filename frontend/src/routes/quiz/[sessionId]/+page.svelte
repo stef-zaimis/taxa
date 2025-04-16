@@ -9,8 +9,8 @@
 	let options: any[] = [];
 	let correctAnswer = '';
 	let selectedAnswer: string | null = null;
-	//let resultText = '';
-	//let resultColor = '';
+	let resultText = '';
+	let resultColor = '';
 	let hintActive = false;
 
 	let imageClass = '';

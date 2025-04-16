@@ -9,12 +9,14 @@
 	let error: string | null = null;
 	let isFocused = false;
 	let minLength = mode == 'rank' ? 1 : 2;
+	let hasSearched = false;
 
 	let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 	let blurTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	async function fetchSuggestions(query: string) {
 		isLoading = true;
+		hasSearched = false;
 		console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
 		try {
 			const baseUrl = import.meta.env.VITE_API_URL;
@@ -22,13 +24,17 @@
 			const res = await fetch(`${baseUrl}${endpoint}?q=${encodeURIComponent(query)}`);
 			if (res.ok) {
 				suggestions = await res.json();
+				isFocused = true;
 			} else {
 				error = `API ERror: ${res.status}`;
+				suggestions = [];
 			}
 		} catch (err) {
 			error = 'Search failed';
+			suggestions = [];
 			console.error(err);
 		}
+		hasSearched = true;
 		isLoading = false;
 	}
 
@@ -36,6 +42,9 @@
 		suggestions = [];
 		const target = event.target as HTMLInputElement;
 		searchTerm = target.value
+
+		hasSearched = false;
+		isFocused = true;
 
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
@@ -54,10 +63,10 @@
 	}
 
 	function handleFocus() {
-		isFocused = true;
 		if (blurTimeout) clearTimeout(blurTimeout);
+		isFocused = true;
 
-		if (searchTerm.length >=minLength && suggestions.length === 0) {
+		if (searchTerm.length >= minLength && suggestions.length === 0) {
 			fetchSuggestions(searchTerm);
 		}
 	}
@@ -80,6 +89,7 @@
 			authorship: ''
 		});
 		isFocused = false;
+		hasSearched = false;
 	}
 </script>
 
@@ -138,6 +148,13 @@
 	.suggestion:hover {
 		background-color: #eee;
 	}
+
+	.no-click {
+		pointer-events: none;
+		cursor: default;
+		user-select: none;
+	}
+
 	.no-media {
 		color:red;
 	}
@@ -152,6 +169,11 @@
 		color: black;
 		z-index: 999;
 	}
+
+	.no-results-message {
+		color: red;
+	}
+
 	i {
 		font-style: italic;
 	}
@@ -172,10 +194,12 @@
 
 	{#if isLoading}
 		<p class="loading-message">Loading...</p>
+	{:else if hasSearched && !isLoading && (suggestions?.length ?? 0) === 0}
+		<p class="loading-message no-results-message" color: red>No results found</p>
 	{/if}
-
-	{#if isFocused && suggestions.length > 0}
-		<ul class="suggestions">
+	{#if isFocused && (suggestions.length > 0 || (hasSearched && !isLoading && searchTerm.length >= minLength))}
+	<ul class="suggestions">
+		{#if suggestions.length > 0}
 			{#each suggestions as s}
 				<li
 					class="suggestion {mode === 'taxon' && !s.has_media ? 'no-media' : ''}"
@@ -191,13 +215,15 @@
 							{#if s.authorship}
 								<i> {s.authorship}</i>
 							{/if}
-							&nbsp;({s.rank})
+							&nbsp;<i>({s.rank})</i>
 						</span>
 					{/if}	
 				</li>
 			{/each}
-		</ul>
-	{/if}
+		{/if}
+	</ul>
+{/if}
+	
 
 	{#if error}
 		<p class="loading-message" style="color: red;">{error}</p>
