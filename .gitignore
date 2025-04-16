@@ -6,6 +6,7 @@ db/local_processing/
 frontend/build
 frontend/.svelte-kit
 frontend/node_modules/
+frontend/.env
 
 # Git stuff
 key.txt
