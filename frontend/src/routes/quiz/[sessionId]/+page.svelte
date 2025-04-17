@@ -14,6 +14,7 @@
 	let hintActive = false;
 
 	let imageClass = '';
+	let imageWrapperRef: HTMLDivElement;
 
 	let locked = false
 	let score = 0;
@@ -58,6 +59,8 @@
 		//resultText = '';
 		selectedAnswer = null;
 		locked = false;
+
+		updateImageClass(data.imageUrl);
 	}
 
 	async function fetchNextQuestion() {
@@ -117,19 +120,22 @@
 		].join(' ');
 	}
 
-	function handleImageLoad(event: Event) {
-		const img = event.target as HTMLImageElement;
-		if (!img) return;
+	function updateImageClass(url: string) {
+		const img = new Image();
+		img.onload = () => {
 
-		const { naturalWidth, naturalHeight } = img;
+			const naturalWidth = img.width;
+			const naturalHeight = img.height
 
-		if (naturalWidth === naturalHeight) {
-			imageClass = '';
-		} else if (naturalWidth > naturalHeight) {
-			imageClass = 'border-top-bottom';
-		} else {
-			imageClass = 'border-left-right';
-		}
+			if (naturalWidth === naturalHeight) {
+				imageClass = '';
+			} else if (naturalWidth > naturalHeight) {
+				imageClass = 'border-top-bottom';
+			} else {
+				imageClass = 'border-left-right';
+			}
+		};
+		img.src = url;
 	}
 </script>
 
@@ -278,18 +284,24 @@
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
-		outline: 2px dashed lime;
 		transition: border 0.2s ease-in-out;
 	}
 
-	.quiz-image.border-top-bottom {
+	.image-wrapper::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+
+	.image-wrapper.border-top-bottom {
 		border-top: 4px solid rgba(0, 0, 0, 1);
 		border-bottom: 4px solid rgba(0, 0, 0, 1);
 		border-left: none;
 		border-right: none;
 	}
 	
-	.quiz-image.border-left-right {
+	.image-wrapper.border-left-right {
 		border-left: 4px solid rgba(0, 0, 0, 1);
 		border-right: 4px solid rgba(0, 0, 0, 1);
 		border-top: none;
@@ -466,7 +478,7 @@
 				<img src='/quiz/frame-fill-fabric-super-dark.png' alt="Frame Background" class="frame-bg"/>
 	
 				{#if imageUrl}
-					<div class="image-wrapper" style="background-image: url({imageUrl})">
+					<div bind:this={imageWrapperRef} class={"image-wrapper " + imageClass} style="background-image: url({imageUrl})">
 					</div>
 				{/if}
 				<img class="hint-icon" src={hintActive ? '/quiz/lightbulb_on.webp' : '/quiz/lightbulb_off.webp'} alt="Hint" on:click={() => hintActive = !hintActive} />
