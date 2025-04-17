@@ -10,183 +10,130 @@ import (
 	"github.com/stef-zaimis/taxa/internal/gbif"
 )
 
-// GenerateQuestion assembles a full quiz question with correct/incorrect taxa and an image.
+// GenerateQuestion assembles a quiz question by
+// 1) loading _all_ descendants in one pass,
+// 2) splitting them into media vs non-media slices,
+// 3) picking correct+N distractors in-memory,
+// 4) fetching those rows in a single small query,
+// 5) getting the GBIF image for the correct one.
 func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
-	// Phase 1: fetch all media-enabled IDs once
-	mediaIDs, ancestorID, err := fetchAllMediaIDs(pool, parentRank, parentName, targetRank)
+	// 1) Fetch every descendant ID under ancestor+rank
+	descendantIDs, mediaIDs, ancestorID, err := fetchDescendantInfo(pool, parentRank, parentName, targetRank)
 	if err != nil {
-		return Question{}, fmt.Errorf("no media taxa found: %w", err)
+		return Question{}, fmt.Errorf("fetchDescendantInfo: %w", err)
 	}
 
-	// Phase 2: retry in-memory picks
-	maxAttempts := 10
-	var correctTaxon Taxon
-	var gbifKey, imageURL string
-	for i := 0; i < maxAttempts; i++ {
-		pickID := mediaIDs[rand.Intn(len(mediaIDs))]
-		// fetch that single taxon
-		t, err := fetchTaxonByID(pool, pickID)
-		if err != nil {
-			continue
+	// Must have at least one media-enabled taxon
+	if len(mediaIDs) == 0 {
+		return Question{}, fmt.Errorf("no taxa with media found under %s/%s/%s", parentRank, parentName, targetRank)
+	}
+
+	// 2) Pick correct taxon ID at random from mediaIDs
+	correctID := mediaIDs[rand.Intn(len(mediaIDs))]
+
+	// 3) Build slice of candidate distractor IDs (exclude correct)
+	others := make([]string, 0, len(descendantIDs)-1)
+	for _, id := range descendantIDs {
+		if id != correctID {
+			others = append(others, id)
 		}
-		// get image from GBIF
-		key, img := gbif.GetImage(pool, t.ScientificName, t.Authorship, t.Rank)
-		if img != "" && !strings.Contains(img, "localhost") {
+	}
+	if len(others) < optionCount-1 {
+		return Question{}, fmt.Errorf("not enough distractors: have %d, need %d", len(others), optionCount-1)
+	}
+
+	// Shuffle and take first N distractors
+	rand.Shuffle(len(others), func(i, j int) { others[i], others[j] = others[j], others[i] })
+	distractorIDs := others[:optionCount-1]
+
+	// 4) Fetch all chosen rows (correct + distractors) in one small query
+	pickIDs := append(distractorIDs, correctID)
+	taxaRows, err := fetchTaxaByIDs(pool, pickIDs)
+	if err != nil {
+		return Question{}, fmt.Errorf("fetchTaxaByIDs: %w", err)
+	}
+
+	// 5) Find correctTaxon in the returned slice and get its GBIF image
+	var correctTaxon Taxon
+	for _, t := range taxaRows {
+		if t.TaxonID == correctID {
 			correctTaxon = t
-			gbifKey = key
-			imageURL = img
+			key, img := gbif.GetImage(t.ScientificName, t.Authorship, t.Rank)
+			correctTaxon.GBIFKey = key
+			if img == "" || strings.Contains(img, "localhost") {
+				return Question{}, fmt.Errorf("no valid image for taxon %s", t.ScientificName)
+			}
 			break
 		}
 	}
-	if correctTaxon.TaxonID == "" {
-		return Question{}, fmt.Errorf("could not find media taxon after %d tries", maxAttempts)
-	}
-	correctTaxon.GBIFKey = gbifKey
 
-	// Get distractors
-	distractorCount := optionCount - 1
-	incorrectTaxa, err := getRandomAdditionalTaxa(pool, parentRank, parentName, targetRank, correctTaxon.ScientificName, ancestorID, distractorCount)
-	if err != nil {
-		return Question{}, fmt.Errorf("failed to get distractors: %w", err)
-	}
+	// Shuffle final options order
+	rand.Shuffle(len(taxaRows), func(i, j int) { taxaRows[i], taxaRows[j] = taxaRows[j], taxaRows[i] })
 
-	// Shuffle options and find correct index
-	options := append(incorrectTaxa, correctTaxon)
-	rand.Shuffle(len(options), func(i, j int) { options[i], options[j] = options[j], options[i] })
+	// Locate correctIndex
 	correctIndex := -1
-	for i, t := range options {
-		if t.ScientificName == correctTaxon.ScientificName {
+	for i, t := range taxaRows {
+		if t.TaxonID == correctID {
 			correctIndex = i
 			break
 		}
 	}
-	if correctIndex == -1 {
-		return Question{}, fmt.Errorf("can't find correct taxon after shuffling")
-	}
 
-	// Return question
 	return Question{
-		ImageURL:      imageURL,
-		Options:       options,
+		ImageURL:      "TODO_IMAGE_URL_NOT_USED_HERE",
+		Options:       taxaRows,
 		CorrectIndex:  correctIndex,
 		CorrectAnswer: correctTaxon,
 	}, nil
 }
 
-// fetchAllMediaIDs retrieves all descendant IDs with has_media = TRUE under the given ancestor+rank.
-func fetchAllMediaIDs(pool *pgxpool.Pool, parentRank, parentName, targetRank string) ([]string, string, error) {
+// fetchDescendantInfo loads ALL descendants under the given ancestor+rank
+// returning three things in one pass: all IDs, media-enabled IDs, and the ancestorID.
+func fetchDescendantInfo(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (allIDs, mediaIDs []string, ancestorID string, err error) {
 	ctx := context.Background()
-	var ancestorID string
-	if err := pool.QueryRow(ctx, `
+	// 1) lookup ancestorID
+	err = pool.QueryRow(ctx, `
 		SELECT taxon_id
 		  FROM taxon
 		 WHERE lower(taxon_rank) = $1
 		   AND lower(scientific_name) = $2
-		 LIMIT 1
-	`, parentRank, parentName).Scan(&ancestorID); err != nil {
-		return nil, "", err
+		 LIMIT 1`, parentRank, parentName).Scan(&ancestorID)
+	if err != nil {
+		return
 	}
 
+	// 2) one big pass: pull every descendant_id + has_media flag
 	rows, err := pool.Query(ctx, `
-		SELECT c.descendant_id
+		SELECT c.descendant_id, t.has_media
 		  FROM taxon_closure c
 		  JOIN taxon t ON t.taxon_id = c.descendant_id
 		 WHERE c.ancestor_id       = $1
 		   AND lower(t.taxon_rank) = lower($2)
-		   AND t.has_media         = TRUE
-	`, ancestorID, targetRank)
+		`, ancestorID, targetRank)
 	if err != nil {
-		return nil, "", err
+		return
 	}
 	defer rows.Close()
 
-	var ids []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, "", err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, "", err
-	}
-	if len(ids) == 0 {
-		return nil, "", fmt.Errorf("no taxa with media found")
-	}
-	return ids, ancestorID, nil
-}
-
-// fetchTaxonByID retrieves a single Taxon row by taxon_id.
-func fetchTaxonByID(pool *pgxpool.Pool, id string) (Taxon, error) {
-	ctx := context.Background()
-	var t Taxon
-	err := pool.QueryRow(ctx, `
-		SELECT taxon_id,
-		       scientific_name,
-		       scientific_name_authorship,
-		       taxon_rank,
-		       has_media,
-		       taxonomic_status,
-		       kingdom,
-		       phylum,
-		       class_name,
-		       order_name,
-		       superfamily,
-		       family,
-		       subfamily,
-		       tribe
-		  FROM taxon
-		 WHERE taxon_id = $1
-	`, id).Scan(
-		&t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia,
-		&t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order,
-		&t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe,
-	)
-	return t, err
-}
-
-// getRandomAdditionalTaxa fetches `distractorCount` random taxa under the same ancestor+rank excluding the correct one.
-func getRandomAdditionalTaxa(pool *pgxpool.Pool, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, distractorCount int) ([]Taxon, error) {
-	ctx := context.Background()
-
-	// 1) Grab all candidate IDs
-	rows, err := pool.Query(ctx, `
-		SELECT c.descendant_id
-		  FROM taxon_closure c
-		  JOIN taxon t ON t.taxon_id = c.descendant_id
-		 WHERE c.ancestor_id       = $1
-		   AND lower(t.taxon_rank) = lower($2)
-		   AND t.scientific_name  != $3
-	`, ancestorID, targetRank, excludeTaxon)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch candidate IDs: %w", err)
-	}
-	defer rows.Close()
-
-	var allIDs []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("id scan error: %w", err)
+		var hasMedia bool
+		if err = rows.Scan(&id, &hasMedia); err != nil {
+			return
 		}
 		allIDs = append(allIDs, id)
+		if hasMedia {
+			mediaIDs = append(mediaIDs, id)
+		}
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %w", err)
-	}
-	if len(allIDs) < distractorCount {
-		return nil, fmt.Errorf("not enough taxa: have %d, need %d", len(allIDs), distractorCount)
-	}
+	err = rows.Err()
+	return
+}
 
-	// 2) Shuffle & pick the first N
-	rand.Shuffle(len(allIDs), func(i, j int) {
-		allIDs[i], allIDs[j] = allIDs[j], allIDs[i]
-	})
-	sampleIDs := allIDs[:distractorCount]
-
-	// 3) Fetch the full Taxon rows in one go
-	query := `
+// fetchTaxaByIDs gets the full Taxon rows for a small slice of IDs in one go.
+func fetchTaxaByIDs(pool *pgxpool.Pool, ids []string) ([]Taxon, error) {
+	ctx := context.Background()
+	rows, err := pool.Query(ctx, `
 		SELECT taxon_id,
 		       scientific_name,
 		       scientific_name_authorship,
@@ -203,31 +150,41 @@ func getRandomAdditionalTaxa(pool *pgxpool.Pool, parentRank, parentName, targetR
 		       tribe
 		  FROM taxon
 		 WHERE taxon_id = ANY($1)
-	`
-	rows2, err := pool.Query(ctx, query, sampleIDs)
+	`, ids)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch sample taxa: %w", err)
+		return nil, err
 	}
-	defer rows2.Close()
+	defer rows.Close()
 
 	var result []Taxon
-	for rows2.Next() {
+	for rows.Next() {
 		var t Taxon
-		if err := rows2.Scan(
-			&t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia,
-			&t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order,
-			&t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe,
+		if err := rows.Scan(
+			&t.TaxonID,
+			&t.ScientificName,
+			&t.Authorship,
+			&t.Rank,
+			&t.HasMedia,
+			&t.Status,
+			&t.Kingdom,
+			&t.Phylum,
+			&t.Class,
+			&t.Order,
+			&t.SuperFamily,
+			&t.Family,
+			&t.SubFamily,
+			&t.Tribe,
 		); err != nil {
-			return nil, fmt.Errorf("taxon scan error: %w", err)
+			return nil, err
 		}
 		result = append(result, t)
 	}
-	if err := rows2.Err(); err != nil {
-		return nil, fmt.Errorf("rows2 err: %w", err)
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-
 	return result, nil
 }
+
 
 
 // LEGACY THINGS, KEEPING THEM JUST IN CASE
