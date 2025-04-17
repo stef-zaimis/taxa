@@ -71,8 +71,90 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 	}, nil
 }
 
-// getTaxonWithMedia fetches a single taxon with has_media = TRUE
+// getTaxonWithMedia picks one random taxon WITH has_media = TRUE 
+// under the given ancestor + rank, **without** COUNT or OFFSET.
 func getTaxonWithMedia(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (Taxon, string, error) {
+  ctx := context.Background()
+
+  // 1) find the ancestorID
+  var ancestorID string
+  err := pool.QueryRow(ctx, `
+    SELECT taxon_id
+      FROM taxon
+     WHERE lower(taxon_rank) = $1
+       AND lower(scientific_name) = $2
+     LIMIT 1
+  `, parentRank, parentName).Scan(&ancestorID)
+  if err != nil {
+    return Taxon{}, "", fmt.Errorf("ancestor lookup: %w", err)
+  }
+
+  // 2) pull **all** descendant IDs that have_media = TRUE
+  rows, err := pool.Query(ctx, `
+    SELECT c.descendant_id
+      FROM taxon_closure c
+      JOIN taxon t 
+        ON t.taxon_id = c.descendant_id
+     WHERE c.ancestor_id      = $1
+       AND lower(t.taxon_rank) = lower($2)
+       AND t.has_media         = TRUE
+  `, ancestorID, targetRank)
+  if err != nil {
+    return Taxon{}, "", fmt.Errorf("fetch media IDs: %w", err)
+  }
+  defer rows.Close()
+
+  var ids []string
+  for rows.Next() {
+    var id string
+    if err := rows.Scan(&id); err != nil {
+      return Taxon{}, "", fmt.Errorf("scan id: %w", err)
+    }
+    ids = append(ids, id)
+  }
+  if err := rows.Err(); err != nil {
+    return Taxon{}, "", fmt.Errorf("rows err: %w", err)
+  }
+  if len(ids) == 0 {
+    return Taxon{}, "", fmt.Errorf("no taxa with media found")
+  }
+
+  // 3) pick one at random
+  chosenID := ids[rand.Intn(len(ids))]
+
+  // 4) fetch that taxon’s full record
+  var t Taxon
+  err = pool.QueryRow(ctx, `
+    SELECT taxon_id,
+           scientific_name,
+           scientific_name_authorship,
+           taxon_rank,
+           has_media,
+           taxonomic_status,
+           kingdom,
+           phylum,
+           class_name,
+           order_name,
+           superfamily,
+           family,
+           subfamily,
+           tribe
+      FROM taxon
+     WHERE taxon_id = $1
+  `, chosenID).Scan(
+    &t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia,
+    &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order,
+    &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe,
+  )
+  if err != nil {
+    return Taxon{}, "", fmt.Errorf("fetch chosen taxon: %w", err)
+  }
+
+  return t, ancestorID, nil
+}
+
+// getTaxonWithMedia fetches a single taxon with has_media = TRUE
+func getTaxonWithMediaOffsetTrick(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (Taxon, string, error) {
 	ctx := context.Background()
 
 	ancestorQuery := `

@@ -268,6 +268,20 @@ CREATE INDEX IF NOT EXISTS idx_search_index_lower_trgm
 -- rank search table
 CREATE INDEX idx_rank_search ON rank_index (rank);
 
+-- Correct taxon selection
+-- support fast filtering by ancestor_id
+CREATE INDEX IF NOT EXISTS idx_taxon_closure_ancestor
+  ON taxon_closure (ancestor_id);
+
+-- fast case‑insensitive rank lookup
+CREATE INDEX IF NOT EXISTS idx_taxon_rank_lower
+  ON taxon (lower(taxon_rank));
+
+-- fast has_media filter
+CREATE INDEX IF NOT EXISTS idx_taxon_has_media
+  ON taxon (has_media)
+ WHERE has_media = TRUE;
+
 -- Random taxa selection
 -- so lookups by ancestor_id are index-only
 CREATE INDEX IF NOT EXISTS idx_taxon_closure_ancestor
