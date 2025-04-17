@@ -261,6 +261,19 @@ CREATE INDEX idx_search_rank_media ON search_index (rank_priority, has_media);
 -- rank search table
 CREATE INDEX idx_rank_search ON rank_index (rank);
 
+-- Random taxa selection
+-- so lookups by ancestor_id are index-only
+CREATE INDEX IF NOT EXISTS idx_taxon_closure_ancestor
+  ON taxon_closure (ancestor_id);
+
+-- lower(taxon_rank) is used in your WHERE clause
+CREATE INDEX IF NOT EXISTS idx_taxon_rank_lower
+  ON taxon (lower(taxon_rank));
+
+-- has_media filter will be very fast
+CREATE INDEX IF NOT EXISTS idx_taxon_has_media
+  ON taxon (has_media)
+  WHERE has_media = TRUE;
 
 ----------------------------------------------------MEDIA TABLES -> LIKELY USELESS, BUT STILL KEEPING THEM IN CASE----------------------
 -- Old media table

@@ -493,7 +493,7 @@
 			<button class="nav-button back" disabled>
 				<img src="/quiz/left_arrow.webp" />
 			</button>
-			<button class="nav-button forward" on:click={fetchNextQuestion} disabled={loading || !selectedAnswer || (questionCount !== null && totalQuestions >= questionLimit)}>
+			<button class="nav-button forward" on:click={fetchNextQuestion} disabled={loading || !selectedAnswer || (questionCount !== null && totalQuestions >= questionCount)}>
 				<img src="/quiz/right_arrow.webp" />
 			</button>
 		</div>
