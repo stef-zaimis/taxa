@@ -88,6 +88,7 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 
     var correctTaxon Taxon
     var imageURL string
+	var correctID string
 
     // 2) Loop until we find a valid image or run out of candidates
     for len(mediaIDs) > 0 {
@@ -127,6 +128,7 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
         // Found a valid image
         t.GBIFKey = gbifKey
         correctTaxon = t
+		correctID = t.TaxonID
         imageURL = img
         break
     }
