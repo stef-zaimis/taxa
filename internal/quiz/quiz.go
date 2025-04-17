@@ -20,7 +20,7 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 	for i:=0; i<maxAttempts; i++ {
 		// #1: Get correct taxon
 
-		taxon, id, err := getTaxonWithMedia(pool, parentRank, parentName, targetRank)
+		taxon, id, err := getTaxonWithMediaFast(pool, parentRank, parentName, targetRank)
 		if err != nil {
 			continue
 		}
@@ -71,6 +71,177 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 	}, nil
 }
 
+// getTaxonWithMediaFast picks one random taxon WITH has_media = TRUE 
+// under the given ancestor + rank, in O(M) to read M IDs, then O(1) to pick one.
+func getTaxonWithMediaFast(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (Taxon, string, error) {
+  ctx := context.Background()
+
+  // 1) lookup ancestorID
+  var ancestorID string
+  if err := pool.QueryRow(ctx, `
+    SELECT taxon_id
+      FROM taxon
+     WHERE lower(taxon_rank) = $1
+       AND lower(scientific_name) = $2
+     LIMIT 1
+  `, parentRank, parentName).Scan(&ancestorID); err != nil {
+    return Taxon{}, "", fmt.Errorf("ancestor lookup: %w", err)
+  }
+
+  // 2) pull ALL descendant IDs with media (uses idx_taxon_closure_ancestor + idx_taxon_has_media)
+  rows, err := pool.Query(ctx, `
+    SELECT c.descendant_id
+      FROM taxon_closure c
+      JOIN taxon t 
+        ON t.taxon_id = c.descendant_id
+     WHERE c.ancestor_id       = $1
+       AND lower(t.taxon_rank) = lower($2)
+       AND t.has_media         = TRUE
+  `, ancestorID, targetRank)
+  if err != nil {
+    return Taxon{}, "", fmt.Errorf("fetch media IDs: %w", err)
+  }
+  defer rows.Close()
+
+  var ids []string
+  for rows.Next() {
+    var id string
+    if err := rows.Scan(&id); err != nil {
+      return Taxon{}, "", fmt.Errorf("scan id: %w", err)
+    }
+    ids = append(ids, id)
+  }
+  if err := rows.Err(); err != nil {
+    return Taxon{}, "", fmt.Errorf("rows err: %w", err)
+  }
+  if len(ids) == 0 {
+    return Taxon{}, "", fmt.Errorf("no taxa with media found")
+  }
+
+  // 3) pick one at random in Go
+  pick := ids[rand.Intn(len(ids))]
+
+  // 4) fetch that single row
+  var t Taxon
+  if err := pool.QueryRow(ctx, `
+    SELECT taxon_id,
+           scientific_name,
+           scientific_name_authorship,
+           taxon_rank,
+           has_media,
+           taxonomic_status,
+           kingdom,
+           phylum,
+           class_name,
+           order_name,
+           superfamily,
+           family,
+           subfamily,
+           tribe
+      FROM taxon
+     WHERE taxon_id = $1
+  `, pick).Scan(
+    &t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia,
+    &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order,
+    &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe,
+  ); err != nil {
+    return Taxon{}, "", fmt.Errorf("fetch chosen taxon: %w", err)
+  }
+
+  return t, ancestorID, nil
+}
+
+
+// getRandomAdditionalTaxa fetches `distractorCount` random taxa
+// by first pulling all candidate IDs into memory and then shuffling.
+func getRandomAdditionalTaxa(pool *pgxpool.Pool, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, distractorCount int) ([]Taxon, error) {
+    ctx := context.Background()
+
+    // 1) Grab all candidate IDs
+    idQuery := `
+      SELECT c.descendant_id
+      FROM taxon_closure c
+      JOIN taxon t
+        ON t.taxon_id = c.descendant_id
+     WHERE c.ancestor_id     = $1
+       AND lower(t.taxon_rank) = lower($2)
+       AND t.scientific_name  != $3
+    `
+    rows, err := pool.Query(ctx, idQuery, ancestorID, targetRank, excludeTaxon)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch candidate IDs: %w", err)
+    }
+    defer rows.Close()
+
+    var allIDs []string
+    for rows.Next() {
+        var id string
+        if err := rows.Scan(&id); err != nil {
+            return nil, fmt.Errorf("id scan error: %w", err)
+        }
+        allIDs = append(allIDs, id)
+    }
+    if err := rows.Err(); err != nil {
+        return nil, fmt.Errorf("rows err: %w", err)
+    }
+
+    if len(allIDs) < distractorCount {
+        return nil, fmt.Errorf("not enough taxa: have %d, need %d", len(allIDs), distractorCount)
+    }
+
+    // 2) Shuffle & pick the first N
+    rand.Shuffle(len(allIDs), func(i, j int) {
+        allIDs[i], allIDs[j] = allIDs[j], allIDs[i]
+    })
+    sampleIDs := allIDs[:distractorCount]
+
+    // 3) Fetch the full Taxon rows in one go
+    taxaQuery := fmt.Sprintf(`
+      SELECT taxon_id,
+             scientific_name,
+             scientific_name_authorship,
+             taxon_rank,
+             has_media,
+             taxonomic_status,
+             kingdom,
+             phylum,
+             class_name,
+             order_name,
+             superfamily,
+             family,
+             subfamily,
+             tribe
+        FROM taxon
+       WHERE taxon_id = ANY($1)
+    `)
+
+    rows2, err := pool.Query(ctx, taxaQuery, sampleIDs)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch sample taxa: %w", err)
+    }
+    defer rows2.Close()
+
+    var result []Taxon
+    for rows2.Next() {
+        var t Taxon
+        if err := rows2.Scan(
+            &t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia,
+            &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order,
+            &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe,
+        ); err != nil {
+            return nil, fmt.Errorf("taxon scan error: %w", err)
+        }
+        result = append(result, t)
+    }
+    if err := rows2.Err(); err != nil {
+        return nil, fmt.Errorf("rows2 err: %w", err)
+    }
+
+    return result, nil
+}
+
+
+// LEGACY THINGS, KEEPING THEM JUST IN CASE
 // getTaxonWithMedia picks one random taxon WITH has_media = TRUE 
 // under the given ancestor + rank, **without** COUNT or OFFSET.
 func getTaxonWithMedia(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (Taxon, string, error) {
@@ -208,94 +379,6 @@ func getTaxonWithMediaOffsetTrick(pool *pgxpool.Pool, parentRank, parentName, ta
 	}
 
 	return t, ancestorID, nil
-}
-
-// getRandomAdditionalTaxa fetches `distractorCount` random taxa
-// by first pulling all candidate IDs into memory and then shuffling.
-func getRandomAdditionalTaxa(pool *pgxpool.Pool, parentRank, parentName, targetRank, excludeTaxon, ancestorID string, distractorCount int) ([]Taxon, error) {
-    ctx := context.Background()
-
-    // 1) Grab all candidate IDs
-    idQuery := `
-      SELECT c.descendant_id
-      FROM taxon_closure c
-      JOIN taxon t
-        ON t.taxon_id = c.descendant_id
-     WHERE c.ancestor_id     = $1
-       AND lower(t.taxon_rank) = lower($2)
-       AND t.scientific_name  != $3
-    `
-    rows, err := pool.Query(ctx, idQuery, ancestorID, targetRank, excludeTaxon)
-    if err != nil {
-        return nil, fmt.Errorf("failed to fetch candidate IDs: %w", err)
-    }
-    defer rows.Close()
-
-    var allIDs []string
-    for rows.Next() {
-        var id string
-        if err := rows.Scan(&id); err != nil {
-            return nil, fmt.Errorf("id scan error: %w", err)
-        }
-        allIDs = append(allIDs, id)
-    }
-    if err := rows.Err(); err != nil {
-        return nil, fmt.Errorf("rows err: %w", err)
-    }
-
-    if len(allIDs) < distractorCount {
-        return nil, fmt.Errorf("not enough taxa: have %d, need %d", len(allIDs), distractorCount)
-    }
-
-    // 2) Shuffle & pick the first N
-    rand.Shuffle(len(allIDs), func(i, j int) {
-        allIDs[i], allIDs[j] = allIDs[j], allIDs[i]
-    })
-    sampleIDs := allIDs[:distractorCount]
-
-    // 3) Fetch the full Taxon rows in one go
-    taxaQuery := fmt.Sprintf(`
-      SELECT taxon_id,
-             scientific_name,
-             scientific_name_authorship,
-             taxon_rank,
-             has_media,
-             taxonomic_status,
-             kingdom,
-             phylum,
-             class_name,
-             order_name,
-             superfamily,
-             family,
-             subfamily,
-             tribe
-        FROM taxon
-       WHERE taxon_id = ANY($1)
-    `)
-
-    rows2, err := pool.Query(ctx, taxaQuery, sampleIDs)
-    if err != nil {
-        return nil, fmt.Errorf("failed to fetch sample taxa: %w", err)
-    }
-    defer rows2.Close()
-
-    var result []Taxon
-    for rows2.Next() {
-        var t Taxon
-        if err := rows2.Scan(
-            &t.TaxonID, &t.ScientificName, &t.Authorship, &t.Rank, &t.HasMedia,
-            &t.Status, &t.Kingdom, &t.Phylum, &t.Class, &t.Order,
-            &t.SuperFamily, &t.Family, &t.SubFamily, &t.Tribe,
-        ); err != nil {
-            return nil, fmt.Errorf("taxon scan error: %w", err)
-        }
-        result = append(result, t)
-    }
-    if err := rows2.Err(); err != nil {
-        return nil, fmt.Errorf("rows2 err: %w", err)
-    }
-
-    return result, nil
 }
 
 // getRandomAdditionalTaxa fetches three random taxa (not checking has_media)
