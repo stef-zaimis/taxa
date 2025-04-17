@@ -18,7 +18,7 @@ import (
 // 5) getting the GBIF image for the correct one.
 func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
 	// 1) Fetch every descendant ID under ancestor+rank
-	descendantIDs, mediaIDs, ancestorID, err := fetchDescendantInfo(pool, parentRank, parentName, targetRank)
+	descendantIDs, mediaIDs, _, err := fetchDescendantInfo(pool, parentRank, parentName, targetRank)
 	if err != nil {
 		return Question{}, fmt.Errorf("fetchDescendantInfo: %w", err)
 	}
@@ -55,14 +55,17 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 
 	// 5) Find correctTaxon in the returned slice and get its GBIF image
 	var correctTaxon Taxon
+	var imageURL string
 	for _, t := range taxaRows {
 		if t.TaxonID == correctID {
 			correctTaxon = t
-			key, img := gbif.GetImage(t.ScientificName, t.Authorship, t.Rank)
+			// Pass pool into GetImage
+			key, img := gbif.GetImage(pool, t.ScientificName, t.Authorship, t.Rank)
 			correctTaxon.GBIFKey = key
 			if img == "" || strings.Contains(img, "localhost") {
 				return Question{}, fmt.Errorf("no valid image for taxon %s", t.ScientificName)
 			}
+			imageURL = img
 			break
 		}
 	}
@@ -80,7 +83,7 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
 	}
 
 	return Question{
-		ImageURL:      "TODO_IMAGE_URL_NOT_USED_HERE",
+		ImageURL:      imageURL,
 		Options:       taxaRows,
 		CorrectIndex:  correctIndex,
 		CorrectAnswer: correctTaxon,
@@ -184,6 +187,7 @@ func fetchTaxaByIDs(pool *pgxpool.Pool, ids []string) ([]Taxon, error) {
 	}
 	return result, nil
 }
+
 
 
 
