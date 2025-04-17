@@ -12,6 +12,7 @@ frontend/.env
 key.txt
 .env
 taxa.sql
+ssh.txt
 
 taxon_backup.dump
 
