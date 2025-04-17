@@ -261,14 +261,10 @@
 		object-position: center;
 		display: block;
 		z-index: 1;
-		outline: 2px solid red;
-		background-color: rgba(255, 0, 0, 0.05);
+		image-rendering: pixelated;
 	}
 
 	.image-wrapper {
-		background-position: center;
-		background-size: contain;
-		background-repeat: no-repeat;
 		position: absolute;
 		top: 5%;
 		left: 5%;
@@ -277,9 +273,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		overflow: hidden;
-		outline: 2px dashed lime;
 		transition: border 0.2s ease-in-out;
+		margin: 0;
+		padding: 0;
+		box-sizing: border-box;
 	}
 
 	.quiz-image.border-top-bottom {
@@ -466,7 +463,8 @@
 				<img src='/quiz/frame-fill-fabric-super-dark.png' alt="Frame Background" class="frame-bg"/>
 	
 				{#if imageUrl}
-					<div class="image-wrapper" style="background-image: url({imageUrl})">
+					<div class="image-wrapper">
+						<img src={imageUrl} alt="Taxon image" class={`quiz-image ${imageClass}`} on:load={handleImageLoad} />
 					</div>
 				{/if}
 				<img class="hint-icon" src={hintActive ? '/quiz/lightbulb_on.webp' : '/quiz/lightbulb_off.webp'} alt="Hint" on:click={() => hintActive = !hintActive} />
