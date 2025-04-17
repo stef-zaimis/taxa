@@ -174,8 +174,8 @@
 		color: red;
 	}
 
-	i {
-		font-style: italic;
+	b {
+		font-style: bold;
 	}
 </style>
 
@@ -211,11 +211,11 @@
 						{s}
 					{:else}
 						<span>
-							{s.scientific_name}
+							<b> {s.scientific_name} </b>
 							{#if s.authorship}
-								<i> {s.authorship}</i>
+								{s.authorship}
 							{/if}
-							&nbsp;<i>({s.rank})</i>
+							&nbsp;({s.rank})
 						</span>
 					{/if}	
 				</li>
