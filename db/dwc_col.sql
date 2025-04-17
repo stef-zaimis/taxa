@@ -258,6 +258,13 @@ CREATE INDEX idx_taxon_closure_ancestor_desc ON taxon_closure (ancestor_id, desc
 CREATE INDEX idx_search_text_prefix ON search_index (lower(search_text));
 CREATE INDEX idx_search_text_trgm ON search_index USING gin (search_text gin_trgm_ops); -- Make sure to have the extension set up
 CREATE INDEX idx_search_rank_media ON search_index (rank_priority, has_media);
+
+CREATE INDEX IF NOT EXISTS idx_search_index_lower_pattern
+  ON search_index (lower(search_text) text_pattern_ops);
+
+CREATE INDEX IF NOT EXISTS idx_search_index_lower_trgm
+  ON search_index USING gin (lower(search_text) gin_trgm_ops);
+
 -- rank search table
 CREATE INDEX idx_rank_search ON rank_index (rank);
 
@@ -266,7 +273,6 @@ CREATE INDEX idx_rank_search ON rank_index (rank);
 CREATE INDEX IF NOT EXISTS idx_taxon_closure_ancestor
   ON taxon_closure (ancestor_id);
 
--- lower(taxon_rank) is used in your WHERE clause
 CREATE INDEX IF NOT EXISTS idx_taxon_rank_lower
   ON taxon (lower(taxon_rank));
 
