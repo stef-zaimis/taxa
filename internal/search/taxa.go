@@ -61,7 +61,7 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
 		FROM search_index
 		WHERE lower(search_text) LIKE '%' || $1 || '%'
-		ORDER BY similarity(search_text, $1) DESC, rank_priority ASC, scientific_name ASC
+		ORDER BY similarity(lower(search_text), $1) DESC, rank_priority ASC, scientific_name ASC
 		LIMIT $2;
 	`
 
@@ -87,8 +87,8 @@ func SearchTaxa(pool *pgxpool.Pool, rawQuery string, limit int) ([]SearchResult,
 	sqlFuzzy := `
 		SELECT scientific_name, scientific_name_authorship, taxon_rank, taxon_id, has_media
 		FROM search_index
-		WHERE search_text % $1
-		ORDER BY similarity(search_text, $1) DESC, rank_priority ASC, scientific_name
+		WHERE lower(search_text) % $1
+		ORDER BY similarity(lower(search_text), $1) DESC, rank_priority ASC, scientific_name
 		LIMIT $2;
 	`
 
