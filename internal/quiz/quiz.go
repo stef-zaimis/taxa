@@ -22,7 +22,7 @@ var (
     descCache   = make(map[string]descEntry)
     descCacheMu sync.RWMutex
     // choose a TTL that makes sense for your data
-    cacheTTL = 5 * time.Minute
+    cacheTTL = 15 * time.Minute
 )
 
 func cacheKey(parentRank, parentName, targetRank string) string {
@@ -80,12 +80,60 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
     }
 	fmt.Println("Found descendants")
 
-    // 2) … then everything else is unchanged…
     if len(mediaIDs) == 0 {
         return Question{}, fmt.Errorf("no taxa with media under %s/%s/%s", parentRank, parentName, targetRank)
     }
 
-    correctID := mediaIDs[rand.Intn(len(mediaIDs))]
+	cacheKey := cacheKey(parentRank, parentName, targetRank)
+
+    var correctTaxon Taxon
+    var imageURL string
+
+    // 2) Loop until we find a valid image or run out of candidates
+    for len(mediaIDs) > 0 {
+        idx := rand.Intn(len(mediaIDs))
+        candidateID := mediaIDs[idx]
+
+        // Fetch the candidate taxon row
+        taxa, err := fetchTaxaByIDs(pool, []string{candidateID})
+        if err != nil {
+            return Question{}, fmt.Errorf("taxa fetch for candidate %s: %w", candidateID, err)
+        }
+        t := taxa[0]
+        fmt.Printf("Trying taxon %s for image\n", t.ScientificName)
+
+        // Attempt to get an image via GBIF
+        gbifKey, img := gbif.GetImage(pool, t.ScientificName, t.Authorship, t.Rank)
+        if gbifKey == "" || img == "" || strings.Contains(img, "localhost") {
+            // No valid image: remove from our in-memory slice
+            mediaIDs = append(mediaIDs[:idx], mediaIDs[idx+1:]...)
+
+            // Also update the cache entry to reflect removal
+            descCacheMu.Lock()
+            if entry, ok := descCache[cacheKey]; ok {
+                filtered := make([]string, 0, len(entry.mediaIDs)-1)
+                for _, id := range entry.mediaIDs {
+                    if id != candidateID {
+                        filtered = append(filtered, id)
+                    }
+                }
+                entry.mediaIDs = filtered
+                descCache[cacheKey] = entry
+            }
+            descCacheMu.Unlock()
+            continue
+        }
+
+        // Found a valid image
+        t.GBIFKey = gbifKey
+        correctTaxon = t
+        imageURL = img
+        break
+    }
+
+    if correctTaxon.TaxonID == "" {
+        return Question{}, fmt.Errorf("could not find any valid image among candidates")
+    }
 
     others := make([]string, 0, len(descendantIDs)-1)
     for _, id := range descendantIDs {
@@ -106,24 +154,7 @@ func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank str
         return Question{}, fmt.Errorf("taxa fetch: %w", err)
     }
 
-    var correctTaxon Taxon
-    var imageURL string
-    for _, t := range taxaRows {
-        if t.TaxonID == correctID {
-			fmt.Println("Found correct taxon with image")
-            correctTaxon = t
-            key, img := gbif.GetImage(pool, t.ScientificName, t.Authorship, t.Rank)
-            if img == "" || strings.Contains(img, "localhost") {
-                return Question{}, fmt.Errorf("no valid image for %s", t.ScientificName)
-            }
-            correctTaxon.GBIFKey = key
-            imageURL = img
-            break
-        }
-    }
-
     rand.Shuffle(len(taxaRows), func(i, j int) { taxaRows[i], taxaRows[j] = taxaRows[j], taxaRows[i] })
-
     correctIndex := 0
     for i, t := range taxaRows {
         if t.TaxonID == correctID {
