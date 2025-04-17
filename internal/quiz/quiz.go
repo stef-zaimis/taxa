@@ -1,93 +1,144 @@
 package quiz
 
 import (
-	"context"
-	"fmt"
-	"math/rand"
-	"strings"
+    "context"
+    "fmt"
+    "math/rand"
+    "strings"
+    "sync"
+    "time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/stef-zaimis/taxa/internal/gbif"
+    "github.com/jackc/pgx/v5/pgxpool"
+    "github.com/stef-zaimis/taxa/internal/gbif"
 )
 
-// GenerateQuestion assembles a quiz question by
-// 1) loading _all_ descendants in one pass,
-// 2) splitting them into media vs non-media slices,
-// 3) picking correct+N distractors in-memory,
-// 4) fetching those rows in a single small query,
-// 5) getting the GBIF image for the correct one.
+// cache entry holds the two ID slices and a timestamp so you can
+type descEntry struct {
+    allIDs, mediaIDs []string
+    ts               time.Time
+}
+
+var (
+    descCache   = make(map[string]descEntry)
+    descCacheMu sync.RWMutex
+    // choose a TTL that makes sense for your data
+    cacheTTL = 5 * time.Minute
+)
+
+func cacheKey(parentRank, parentName, targetRank string) string {
+    return strings.ToLower(parentRank + ":" + parentName + ":" + targetRank)
+}
+
+// getDescendantsCached wraps fetchDescendantInfo with a simple in‑process cache.
+func getDescendantsCached(pool *pgxpool.Pool, parentRank, parentName, targetRank string) (allIDs, mediaIDs []string, ancestorID string, err error) {
+    key := cacheKey(parentRank, parentName, targetRank)
+
+    // 1) fast read‑lock to see if we have a fresh entry
+    descCacheMu.RLock()
+    if e, ok := descCache[key]; ok && time.Since(e.ts) < cacheTTL {
+        allIDs = e.allIDs
+        mediaIDs = e.mediaIDs
+        descCacheMu.RUnlock()
+        // we still need to return ancestorID to downstream code,
+        // so do a quick one‑row lookup & return it.
+        err = pool.QueryRow(context.Background(), `
+            SELECT taxon_id
+              FROM taxon
+             WHERE lower(taxon_rank) = $1
+               AND lower(scientific_name) = $2
+             LIMIT 1
+        `, parentRank, parentName).Scan(&ancestorID)
+        return
+    }
+    descCacheMu.RUnlock()
+
+    // 2) miss or stale → fetch from DB
+    allIDs, mediaIDs, ancestorID, err = fetchDescendantInfo(pool, parentRank, parentName, targetRank)
+    if err != nil {
+        return
+    }
+
+    // 3) write into cache
+    descCacheMu.Lock()
+    descCache[key] = descEntry{
+        allIDs:   allIDs,
+        mediaIDs: mediaIDs,
+        ts:       time.Now(),
+    }
+    descCacheMu.Unlock()
+    return
+}
+
+// GenerateQuestion is exactly the same as before, except we call
+// getDescendantsCached instead of fetchDescendantInfo directly.
 func GenerateQuestion(pool *pgxpool.Pool, parentRank, parentName, targetRank string, optionCount int) (Question, error) {
-	// 1) Fetch every descendant ID under ancestor+rank
-	descendantIDs, mediaIDs, _, err := fetchDescendantInfo(pool, parentRank, parentName, targetRank)
-	if err != nil {
-		return Question{}, fmt.Errorf("fetchDescendantInfo: %w", err)
-	}
+	fmt.Println("Starting generation")
+    // 1) Fetch or load‐from‐cache every descendant ID under ancestor+rank
+    descendantIDs, mediaIDs, _, err := getDescendantsCached(pool, parentRank, parentName, targetRank)
+    if err != nil {
+        return Question{}, fmt.Errorf("descendants lookup: %w", err)
+    }
+	fmt.Println("Found descendants")
 
-	// Must have at least one media-enabled taxon
-	if len(mediaIDs) == 0 {
-		return Question{}, fmt.Errorf("no taxa with media found under %s/%s/%s", parentRank, parentName, targetRank)
-	}
+    // 2) … then everything else is unchanged…
+    if len(mediaIDs) == 0 {
+        return Question{}, fmt.Errorf("no taxa with media under %s/%s/%s", parentRank, parentName, targetRank)
+    }
 
-	// 2) Pick correct taxon ID at random from mediaIDs
-	correctID := mediaIDs[rand.Intn(len(mediaIDs))]
+    correctID := mediaIDs[rand.Intn(len(mediaIDs))]
 
-	// 3) Build slice of candidate distractor IDs (exclude correct)
-	others := make([]string, 0, len(descendantIDs)-1)
-	for _, id := range descendantIDs {
-		if id != correctID {
-			others = append(others, id)
-		}
-	}
-	if len(others) < optionCount-1 {
-		return Question{}, fmt.Errorf("not enough distractors: have %d, need %d", len(others), optionCount-1)
-	}
+    others := make([]string, 0, len(descendantIDs)-1)
+    for _, id := range descendantIDs {
+        if id != correctID {
+            others = append(others, id)
+        }
+    }
+    if len(others) < optionCount-1 {
+        return Question{}, fmt.Errorf("need %d distractors but only have %d", optionCount-1, len(others))
+    }
 
-	// Shuffle and take first N distractors
-	rand.Shuffle(len(others), func(i, j int) { others[i], others[j] = others[j], others[i] })
-	distractorIDs := others[:optionCount-1]
+    rand.Shuffle(len(others), func(i, j int) { others[i], others[j] = others[j], others[i] })
+    distractorIDs := others[:optionCount-1]
 
-	// 4) Fetch all chosen rows (correct + distractors) in one small query
-	pickIDs := append(distractorIDs, correctID)
-	taxaRows, err := fetchTaxaByIDs(pool, pickIDs)
-	if err != nil {
-		return Question{}, fmt.Errorf("fetchTaxaByIDs: %w", err)
-	}
+    pickIDs := append(distractorIDs, correctID)
+    taxaRows, err := fetchTaxaByIDs(pool, pickIDs)
+    if err != nil {
+        return Question{}, fmt.Errorf("taxa fetch: %w", err)
+    }
 
-	// 5) Find correctTaxon in the returned slice and get its GBIF image
-	var correctTaxon Taxon
-	var imageURL string
-	for _, t := range taxaRows {
-		if t.TaxonID == correctID {
-			correctTaxon = t
-			// Pass pool into GetImage
-			key, img := gbif.GetImage(pool, t.ScientificName, t.Authorship, t.Rank)
-			correctTaxon.GBIFKey = key
-			if img == "" || strings.Contains(img, "localhost") {
-				return Question{}, fmt.Errorf("no valid image for taxon %s", t.ScientificName)
-			}
-			imageURL = img
-			break
-		}
-	}
+    var correctTaxon Taxon
+    var imageURL string
+    for _, t := range taxaRows {
+        if t.TaxonID == correctID {
+			fmt.Println("Found correct taxon with image")
+            correctTaxon = t
+            key, img := gbif.GetImage(pool, t.ScientificName, t.Authorship, t.Rank)
+            if img == "" || strings.Contains(img, "localhost") {
+                return Question{}, fmt.Errorf("no valid image for %s", t.ScientificName)
+            }
+            correctTaxon.GBIFKey = key
+            imageURL = img
+            break
+        }
+    }
 
-	// Shuffle final options order
-	rand.Shuffle(len(taxaRows), func(i, j int) { taxaRows[i], taxaRows[j] = taxaRows[j], taxaRows[i] })
+    rand.Shuffle(len(taxaRows), func(i, j int) { taxaRows[i], taxaRows[j] = taxaRows[j], taxaRows[i] })
 
-	// Locate correctIndex
-	correctIndex := -1
-	for i, t := range taxaRows {
-		if t.TaxonID == correctID {
-			correctIndex = i
-			break
-		}
-	}
+    correctIndex := 0
+    for i, t := range taxaRows {
+        if t.TaxonID == correctID {
+            correctIndex = i
+            break
+        }
+    }
 
-	return Question{
-		ImageURL:      imageURL,
-		Options:       taxaRows,
-		CorrectIndex:  correctIndex,
-		CorrectAnswer: correctTaxon,
-	}, nil
+	fmt.Println("Full quiz assembled")
+    return Question{
+        ImageURL:      imageURL,
+        Options:       taxaRows,
+        CorrectIndex:  correctIndex,
+        CorrectAnswer: correctTaxon,
+    }, nil
 }
 
 // fetchDescendantInfo loads ALL descendants under the given ancestor+rank
