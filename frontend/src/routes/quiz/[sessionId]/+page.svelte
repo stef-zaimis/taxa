@@ -607,7 +607,7 @@
 			<button class="nav-button back" disabled>
 				<img src="/quiz/left_arrow.webp" />
 			</button>
-			<button class="nav-button forward" on:click={handleNextClick} disabled={loading || !selectedAnswer}>
+			<button class="nav-button forward" on:click={handleNextClick} disabled={loading}>
 				<img src="/quiz/right_arrow.webp" />
 			</button>
 		</div>

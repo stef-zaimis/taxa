@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	gbifSearchAPI = "https://api.gbif.org/v1/species/search?datasetKey=d7dddbf4-2cf0-4f39-9b2a-bb099caae36c&q="
+	gbifSearchAPI     = "https://api.gbif.org/v1/species/search?datasetKey=d7dddbf4-2cf0-4f39-9b2a-bb099caae36c&status=ACCEPTED&extinct=false&q="
 	gbifOccurrenceAPI = "https://api.gbif.org/v1/occurrence/search?mediaType=StillImage&license=CC0_1_0&license=CC_BY_4_0&taxonKey="
 )
 
@@ -45,7 +45,7 @@ func GetImage(pool *pgxpool.Pool, taxon, authorship, rank string) (string, strin
 	updateQuery := "UPDATE taxon SET gbif_key = $1 WHERE lower(scientific_name) = lower($2) AND lower(taxon_rank) = lower($3)"
 	_, err = pool.Exec(ctx, updateQuery, gbifKey, taxon, rank)
 	if err != nil {
-		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon ,err)
+		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon, err)
 	} else {
 		fmt.Printf("Updated GBIF key for %s: %s\n", taxon, gbifKey)
 	}
@@ -120,5 +120,5 @@ func fetchGBIFImageFromAPI(pool *pgxpool.Pool, gbifKey, taxon, rank string) stri
 		return ""
 	}
 
-	return images[rand.Intn(len(images))] 
+	return images[rand.Intn(len(images))]
 }

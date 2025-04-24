@@ -69,13 +69,6 @@
 </script>
 
 <style>
-	@font-face {
-		font-family: 'OldNewspaperTypes';
-		src: url('/fonts/OldNewspaperTypes.ttf') format('truetype');
-		font-weight: normal;
-		font-style: normal;
-	}
-
 	h1, body {
 		color: #ccc;
 		font-family: 'OldNewspaperTypes', serif;
