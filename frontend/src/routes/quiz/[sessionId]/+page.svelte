@@ -140,6 +140,10 @@
 </script>
 
 <style>
+    * {
+    	font-family: 'OldNewspaperTypes', sans-serif;
+    }
+
 	.quiz-container {
 		width: 100vw;
 		min-height: 100vh;
@@ -151,7 +155,7 @@
 		background-repeat: no-repeat;
 		background-color: black;
 		overflow: auto;
-		padding: 1%;
+		padding: 0.5%;
 		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
@@ -159,14 +163,66 @@
 
 	.hud-placeholder {
 		position: absolute;
-		top: 1rem;
-		right: 1rem;
+		top: 1%;
+		right: 1%;
 		width: auto;
 		height: auto;
 		z-index: 10;
 		height: 6rem; /* ~96px */
 		flex-shrink: 0;
 	}
+
+    .score-book {
+        position: absolute;
+        top: 1%;
+        right: 1%;
+        width: clamp(3rem, 8vw, 9rem);
+        aspect-ratio: 1 / 1.2;
+        background-image: url('/quiz/book.webp');
+        background-size: contain;
+        background-position: center;
+        display: flex;
+        background-repeat: no-repeat;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        color: black;
+        font-family: 'OldNewspaperTypes', serif;
+        text-shadow:
+            -1px -1px 0 white,
+             1px -1px 0 white,
+            -1px  1px 0 white,
+             1px  1px 0 white;
+        z-index: 10;
+    }
+
+    .book-title {
+        font-size: 150%;
+        font-size: clamp(1rem, 1.8vw, 2.3rem);
+        text-align: center;
+        margin-top: 18%;
+    }
+
+    .book-pages {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 35%;
+        padding: 17% 0;
+        font-size: clamp(1.3rem, 2.3vw, 2.5rem);
+        font-weight: bold;
+    }
+
+    .book-left {
+        width: 45%;
+        text-align: right;
+    }
+
+    .book-right {
+        width: 45%;
+        text-align: left;
+    }
 
 	.main-content {
 		flex: 1;
@@ -180,6 +236,27 @@
 		height: auto;
 		flex-wrap: wrap;
 	}
+
+    .return-button {
+        position: absolute;
+        left: 1%;
+        top: 3%;
+        transform: translateY(-50%);
+        font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+        z-index: 10;
+        cursor: pointer;
+        color: #2D2929;
+        font-weight: bold;
+        text-shadow:
+            -1px -1px 0 #E8E8E8,
+            1px -1px 0 #E8E8E8,
+            -1px  1px 0 #E8E8E8,
+            1px  1px 0 #E8E8E8;
+    }
+
+    .return-button:hover {
+        color: #595959;
+    }
 
 	.top-popup {
 		position: absolute;
@@ -231,7 +308,7 @@
 
 	.image-frame {
 		position: relative;
-		width: clamp(20rem, 48vw, 58rem);
+		height: clamp(20rem, 43vw, 58rem);
 		aspect-ratio: 1 / 1;
 		flex-shrink: 1;
 		flex-grow: 0;
@@ -399,7 +476,7 @@
 
 	.navigation-buttons {
 		position: absolute;
-		right: 0%;
+		right: 1%;
 		top: 50%;
 		transform: translateY(-50%);
 		display: flex;
@@ -465,14 +542,17 @@
 	{/if}
 
 	<div class="hud-placeholder">
-		<div style="font-size: 2rem; font-weight: bold; color: white;">
-			Score: {score} / {totalQuestions}
-		</div>
+        <div class="score-book">
+            <div class="book-title">Score</div>
+            <div class="book-pages">
+                <div class="book-left">{score}</div>
+                <div class="book-right">{totalQuestions}</div>
+            </div>
+        </div>
 	</div>
 
-	<button class="return-button" on:click={() => goto('/quiz')}>Return to the selection screen</button>
-	
 	<div class="main-content">
+	    <button class="return-button" on:click={() => goto('/quiz')}>Back</button>
 		<div class="content-core">
 			<div class="image-frame">
 				<img src='/quiz/frame-fill-fabric-super-dark.png' alt="Frame Background" class="frame-bg"/>
