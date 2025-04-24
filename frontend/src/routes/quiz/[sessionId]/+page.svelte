@@ -63,6 +63,20 @@
 		updateImageClass(data.imageUrl);
 	}
 
+    function handleNextClick() {
+        if (!quizMeta) return;
+
+        if (questionCount !== null && totalQuestions >= questionCount) {
+            const sessionId = get(page).params.sessionId;
+            const meta = encodeURIComponent(JSON.stringify(quizMeta));
+            goto(`/quiz/${sessionId}/end?score=${score}&total=${totalQuestions}&meta=${meta}`);
+            return;
+        }
+
+        fetchNextQuestion();
+    }
+
+
 	async function fetchNextQuestion() {
 		if (!quizMeta) {
 			console.error("Missing quiz metadata");
@@ -593,7 +607,7 @@
 			<button class="nav-button back" disabled>
 				<img src="/quiz/left_arrow.webp" />
 			</button>
-			<button class="nav-button forward" on:click={fetchNextQuestion} disabled={loading || !selectedAnswer || (questionCount !== null && totalQuestions >= questionCount)}>
+			<button class="nav-button forward" on:click={handleNextClick} disabled={loading || !selectedAnswer}>
 				<img src="/quiz/right_arrow.webp" />
 			</button>
 		</div>
