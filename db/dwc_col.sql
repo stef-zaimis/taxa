@@ -31,7 +31,8 @@ CREATE TABLE taxon (
     taxon_remarks TEXT,
     taxon_references TEXT,
     has_media BOOLEAN NOT NULL DEFAULT FALSE,
-    gbif_key VARCHAR(50)
+    gbif_key VARCHAR(50),
+	is_extinct BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Copying from a Taxon.tsv file of the dwca version of COL, 
@@ -280,6 +281,8 @@ CREATE INDEX IF NOT EXISTS idx_taxon_rank_lower
 CREATE INDEX IF NOT EXISTS idx_taxon_has_media
   ON taxon (has_media)
   WHERE has_media = TRUE;
+
+CREATE INDEX idx_taxon_is_extinct ON taxon (is_extinct);
 
 ----------------------------------------------------MEDIA TABLES -> LIKELY USELESS, BUT STILL KEEPING THEM IN CASE----------------------
 -- Old media table

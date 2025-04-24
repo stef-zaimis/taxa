@@ -46,6 +46,7 @@ func getDescendantsCached(pool *pgxpool.Pool, parentRank, parentName, targetRank
               FROM taxon
              WHERE lower(taxon_rank) = $1
                AND lower(scientific_name) = $2
+			   AND is_extinct = FALSE
              LIMIT 1
         `, parentRank, parentName).Scan(&ancestorID)
         return
@@ -184,6 +185,7 @@ func fetchDescendantInfo(pool *pgxpool.Pool, parentRank, parentName, targetRank 
 		  FROM taxon
 		 WHERE lower(taxon_rank) = $1
 		   AND lower(scientific_name) = $2
+			AND is_extinct = FALSE
 		 LIMIT 1`, parentRank, parentName).Scan(&ancestorID)
 	if err != nil {
 		return
@@ -196,6 +198,7 @@ func fetchDescendantInfo(pool *pgxpool.Pool, parentRank, parentName, targetRank 
 		  JOIN taxon t ON t.taxon_id = c.descendant_id
 		 WHERE c.ancestor_id       = $1
 		   AND lower(t.taxon_rank) = lower($2)
+			AND is_extinct = FALSE
 		`, ancestorID, targetRank)
 	if err != nil {
 		return
