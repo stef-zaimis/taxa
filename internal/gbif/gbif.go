@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	gbifSearchAPI = "https://api.gbif.org/v1/species/search?datasetKey=d7dddbf4-2cf0-4f39-9b2a-bb099caae36c&q="
+	gbifSearchAPI     = "https://api.gbif.org/v1/species/search?datasetKey=d7dddbf4-2cf0-4f39-9b2a-bb099caae36c&q="
 	gbifOccurrenceAPI = "https://api.gbif.org/v1/occurrence/search?mediaType=StillImage&license=CC0_1_0&license=CC_BY_4_0&taxonKey="
 )
 
@@ -45,7 +45,7 @@ func GetImage(pool *pgxpool.Pool, taxon, authorship, rank string) (string, strin
 	updateQuery := "UPDATE taxon SET gbif_key = $1 WHERE lower(scientific_name) = lower($2) AND lower(taxon_rank) = lower($3)"
 	_, err = pool.Exec(ctx, updateQuery, gbifKey, taxon, rank)
 	if err != nil {
-		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon ,err)
+		fmt.Printf("Failed to update GBIF key for %s: %v\n", taxon, err)
 	} else {
 		fmt.Printf("Updated GBIF key for %s: %s\n", taxon, gbifKey)
 	}
@@ -108,17 +108,50 @@ func fetchGBIFImageFromAPI(pool *pgxpool.Pool, gbifKey, taxon, rank string) stri
 	var images []string
 	for _, occurrence := range result.Results {
 		for _, media := range occurrence.Media {
-			if media.Identifier != "" && !strings.Contains(media.Identifier, "localhost") {
+			if media.Identifier != "" {
 				images = append(images, media.Identifier)
 			}
 		}
 	}
 
-	if len(images) == 0 {
+	var validImages []string
+	for _, img := range images {
+		if isValidImageURL(img) {
+			validImages = append(validImages, img)
+		}
+	}
+
+	if len(validImages) == 0 {
 		pool.Exec(ctx, "UPDATE taxon SET has_media = FALSE WHERE lower(scientific_name) = lower($1) AND lower(taxon_rank) = lower($2)", taxon, rank)
-		fmt.Println("No images found for GBIF key:", gbifKey)
+		fmt.Println("No valid images found for GBIF key:", gbifKey)
 		return ""
 	}
 
-	return images[rand.Intn(len(images))] 
+	return validImages[rand.Intn(len(validImages))]
+}
+
+func isValidImageURL(url string) bool {
+	client := &http.Client{}
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		return false
+	}
+
+	return true
 }
